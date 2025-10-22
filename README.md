@@ -1,0 +1,180 @@
+# pptx-toolkit
+
+A lightweight, cross-platform PowerPoint manipulation toolkit. Swap scheme color references in slides without modifying theme definitions.
+
+## What it does
+
+pptx-toolkit reads PowerPoint files and manipulates scheme color references (like `accent1`, `accent5`) throughout slides, layouts, and masters. It supports atomic many-to-one mappings and theme filtering, making it easy to rebrand presentations without touching the actual theme colors.
+
+## Installation
+
+### Quick Install (Recommended)
+
+```bash
+# Install latest release
+curl -sSL https://raw.githubusercontent.com/pmdci/pptx-toolkit/main/install.sh | bash
+```
+
+### Manual Build
+
+```bash
+git clone https://github.com/pmdci/pptx-toolkit
+cd pptx-toolkit
+make build
+make install  # copies to ~/.local/bin
+```
+
+### Download Binary
+
+Download pre-built binaries from the [releases page](https://github.com/pmdci/pptx-toolkit/releases).
+
+Binaries are available for:
+
+- **macOS**: ARM64, Intel (AMD64)
+- **Linux**: ARM64, AMD64
+- **Windows**: ARM64, AMD64
+
+**macOS Users:** Downloaded binaries may be blocked by Gatekeeper. After downloading, run:
+
+```bash
+xattr -d com.apple.quarantine pptx-toolkit
+```
+
+Or alternatively:
+
+```bash
+codesign -s - pptx-toolkit
+```
+
+## Usage
+
+### List themes and colors
+
+View all themes and their color schemes in a PowerPoint file:
+
+```bash
+pptx-toolkit color list presentation.pptx
+# or use UK spelling
+pptx-toolkit colour list presentation.pptx
+```
+
+Example output:
+
+```
+Found 2 theme(s) in presentation.pptx:
+
+━━━ theme1.xml ━━━
+Theme:        Office Theme Deck
+Color Scheme: Office
+
+Colors:
+  dk1      (Dark 1):              #000000
+  lt1      (Light 1):             #FFFFFF
+  accent1  (Accent 1):            #156082
+  accent2  (Accent 2):            #E97132
+  accent3  (Accent 3):            #196B24
+  ...
+```
+
+### Swap color references
+
+Replace scheme color references throughout the presentation:
+
+```bash
+# Single mapping
+pptx-toolkit color swap input.pptx output.pptx "accent1:accent3"
+
+# Many-to-one mapping (atomic)
+pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent5:accent3"
+
+# Multiple mappings
+pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent3:accent4"
+```
+
+**Important:** Replacements are **atomic**, not cascading. In the example above:
+
+- `accent1` becomes `accent3` (NOT `accent4`)
+- `accent3` becomes `accent4`
+
+### Filter by theme
+
+Only process specific themes when a PowerPoint file contains multiple themes:
+
+```bash
+# Process only theme1
+pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1
+
+# Process multiple themes
+pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1,theme2
+```
+
+### Valid scheme color names
+
+PowerPoint scheme colors you can reference:
+
+- **Text/Background**: `dk1`, `lt1`, `dk2`, `lt2`
+- **Accents**: `accent1`, `accent2`, `accent3`, `accent4`, `accent5`, `accent6`
+- **Hyperlinks**: `hlink`, `folHlink`
+
+## Why pptx-toolkit?
+
+Most PowerPoint manipulation tools require heavy dependencies like Python, .NET, or Office interop libraries. pptx-toolkit is a single binary with no dependencies that does one thing well: swap color references across your entire presentation while preserving document structure.
+
+**Key features:**
+
+- **Cross-platform**: Works on macOS, Linux, Windows (all ARM64/AMD64)
+- **Atomic replacement**: Many-to-one mappings without cascading
+- **Theme filtering**: Target specific themes in multi-theme presentations
+- **Fast**: Instant startup, processes presentations in milliseconds
+- **Lightweight**: Single binary (~2-5MB depending on platform)
+- **No dependencies**: No Office, no Python, no runtime
+
+**Use cases:**
+
+- Rebrand presentations by swapping color schemes
+- Unify color usage across multiple presentations
+- Fix accidental color misuse in slide decks
+- Automate presentation styling in CI/CD pipelines
+
+## Development
+
+```bash
+make build         # Build optimised binary to bin/pptx-toolkit
+make build-release # Build with maximum optimisation + UPX compression
+make cross-compile # Build for all platforms (macOS/Linux/Windows on ARM64/AMD64)
+make test          # Run all tests
+make clean         # Clean build artifacts
+make install       # Copy binary to ~/.local/bin
+```
+
+### Binary Size Optimisation
+
+The build system includes several optimisations:
+
+- **Compiler flags**: `-s -w -trimpath -extldflags=-Wl,--strip-all` remove debug symbols and build paths
+- **UPX compression**: Automatically applied in `build-release` and `cross-compile` if UPX is installed
+- **Cross-platform**: The Makefile handles UPX platform differences.
+  - **macOS**: UPX compression is officially unsupported (Apple code signing issues)
+  - **Windows ARM64**: UPX does not yet support Windows ARM64 PE format
+
+Size comparison (typical results):
+
+- Default Go build: ~5.4MB
+- Optimised build: ~5.2MB
+- With UPX (Linux/Windows AMD64): ~2.3MB (57% reduction)
+
+## Contributing
+
+Pull requests, bug reports, and feature suggestions are welcome!
+
+Areas that could use help:
+
+- Additional PowerPoint manipulation features (fonts, themes, etc.)
+- Performance improvements for large presentations
+- Additional output formats (JSON, YAML for color inspection)
+
+## License
+
+GPL-3.0-or-later. See LICENSE file for details.
+
+Copyright (C) 2025 Pedro Innecco

@@ -1,0 +1,67 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: pptx-toolkit
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    main: ./cmd/pptx-toolkit
+    binary: pptx-toolkit
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -extldflags=-Wl,--strip-all
+    flags: [-trimpath]
+    hooks:
+      post:
+        # UPX compression with platform-specific handling
+        # Skip: macOS (Apple code signing), Windows ARM64 (not yet supported by UPX)
+        - cmd: sh -c 'if command -v upx >/dev/null 2>&1; then if [ "{{ .Os }}" = "darwin" ]; then echo "UPX compression for macOS is officially unsupported until further notice. Skipping... {{ .Path }}..."; elif [ "{{ .Os }}" = "windows" ] && [ "{{ .Arch }}" = "arm64" ]; then echo "UPX does not yet support Windows ARM64 PE format. Skipping... {{ .Path }}..."; else upx --best "{{ .Path }}" || echo "UPX compression failed for {{ .Path }}, continuing..."; fi; else echo "UPX not available, skipping compression for {{ .Path }}"; fi'
+        - cmd: echo "🚀 Built pptx-toolkit {{ .Version }} at {{ .Path }}"
+
+archives:
+  - id: pptx-toolkit
+    ids: [pptx-toolkit]
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Summary }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: pmdci
+    name: pptx-toolkit
+  draft: false
+  prerelease: auto
+  mode: replace
