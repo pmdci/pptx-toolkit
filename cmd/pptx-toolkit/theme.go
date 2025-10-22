@@ -34,8 +34,6 @@ type Theme struct {
 	Colors          ColorScheme `json:"colors"`
 }
 
-const drawingMLNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main"
-
 // extractRGBColor extracts RGB color value from a color definition element
 func extractRGBColor(colorElement *xmlquery.Node) string {
 	if colorElement == nil {

@@ -12,8 +12,6 @@ import (
 	"github.com/antchfx/xmlquery"
 )
 
-const relsNS = "http://schemas.openxmlformats.org/package/2006/relationships"
-
 // buildThemeRelationships builds a mapping of slide masters to their themes
 func buildThemeRelationships(tempDir string) (map[string]string, error) {
 	mapping := make(map[string]string)
@@ -42,7 +40,7 @@ func buildThemeRelationships(tempDir string) (map[string]string, error) {
 		}
 
 		// Find theme relationship
-		xpath := fmt.Sprintf("//ns:Relationship[@Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme']")
+		xpath := "//ns:Relationship[@Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme']"
 		node := xmlquery.FindOne(doc, xpath)
 		if node == nil {
 			// Try without namespace prefix
@@ -104,7 +102,7 @@ func buildLayoutToMasterMapping(tempDir string) (map[string]string, error) {
 }
 
 // getSlideTheme determines which theme a slide uses
-func getSlideTheme(slidePath, tempDir string, layoutToMaster, masterToTheme map[string]string) (string, error) {
+func getSlideTheme(slidePath string, layoutToMaster, masterToTheme map[string]string) (string, error) {
 	slideName := filepath.Base(slidePath)
 	relsFile := filepath.Join(filepath.Dir(slidePath), "_rels", slideName+".rels")
 
@@ -176,7 +174,7 @@ func shouldProcessFile(filePath, tempDir string, themeFilter []string,
 
 	// For slides, check which theme they use
 	if strings.HasPrefix(relPath, "ppt/slides/slide") {
-		theme, _ := getSlideTheme(filePath, tempDir, layoutToMaster, masterToTheme)
+		theme, _ := getSlideTheme(filePath, layoutToMaster, masterToTheme)
 		if theme != "" {
 			for _, tf := range themeFiles {
 				if theme == tf {

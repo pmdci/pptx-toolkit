@@ -1,6 +1,6 @@
 # pptx-toolkit
 
-A lightweight, cross-platform PowerPoint manipulation toolkit. Swap scheme color references in slides without modifying theme definitions.
+A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap scheme color references in slides without modifying theme definitions.
 
 ## What it does
 

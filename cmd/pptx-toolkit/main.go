@@ -10,7 +10,7 @@ import (
 // Version is set via ldflags during build
 var Version = "dev"
 
-const versionBanner = `pptx-toolkit v%s
+const versionBanner = `pptx-toolkit %s
 
 ╭━━━┳━━━┳━━━━┳━╮╭━╮╭━━━━╮╱╱╱╱╭╮╭╮╱╱╭╮
 ┃╭━╮┃╭━╮┃╭╮╭╮┣╮╰╯╭╯┃╭╮╭╮┃╱╱╱╱┃┃┃┃╱╭╯╰╮ Copyright (C) 2025 Pedro Innecco
@@ -33,8 +33,8 @@ Brought to you by the letter P.`
 
 var rootCmd = &cobra.Command{
 	Use:   "pptx-toolkit",
-	Short: "PowerPoint toolkit for colors, themes, and other utilities",
-	Long:  "PowerPoint manipulation toolkit.\n\nUse \"pptx-toolkit <group> <command> --help\" for command-specific help.",
+	Short: "Microsoft® PowerPoint toolkit for colors, themes, and other utilities",
+	Long:  "Microsoft® PowerPoint manipulation toolkit.\n\nUse \"pptx-toolkit <group> <command> --help\" for command-specific help.",
 }
 
 func init() {
