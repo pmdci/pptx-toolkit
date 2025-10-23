@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -22,14 +23,33 @@ var ValidSchemeColors = map[string]bool{
 	"folHlink": true,
 }
 
+// hexColorPattern matches 6-character hex color codes (case-insensitive)
+var hexColorPattern = regexp.MustCompile(`^[0-9A-Fa-f]{6}$`)
+
+// isValidHexColor checks if a string is a valid 6-character hex color
+func isValidHexColor(color string) bool {
+	return hexColorPattern.MatchString(color)
+}
+
+// isValidColor checks if a color is either a valid scheme color or hex color
+func isValidColor(color string) bool {
+	return ValidSchemeColors[color] || isValidHexColor(color)
+}
+
 // ParseColorMapping parses a color mapping string into a validated map.
 //
-// Example: "accent1:accent3,accent5:accent3" -> map[accent1:accent3 accent5:accent3]
+// Supports both scheme colors (e.g., accent1, dk1) and hex colors (e.g., AABBCC, FF0000).
+//
+// Examples:
+//   - "accent1:accent3,accent5:accent3" -> scheme to scheme
+//   - "accent1:BBFFCC" -> scheme to hex
+//   - "AABBCC:accent2" -> hex to scheme
+//   - "FF0000:00FF00" -> hex to hex
 //
 // Returns an error if:
 // - Mapping is empty
 // - Format is invalid
-// - Color names are invalid
+// - Color values are invalid (not a scheme color or valid 6-digit hex)
 // - Conflicting mappings exist (e.g., accent1:accent3,accent1:accent2)
 func ParseColorMapping(mappingStr string) (map[string]string, error) {
 	mappingStr = strings.TrimSpace(mappingStr)
@@ -62,14 +82,22 @@ func ParseColorMapping(mappingStr string) (map[string]string, error) {
 			return nil, fmt.Errorf("invalid mapping: '%s'. Source and target cannot be empty", pair)
 		}
 
-		// Validate color names
-		if !ValidSchemeColors[source] {
-			return nil, fmt.Errorf("invalid source color: '%s'. Valid colors are: %s",
+		// Validate colors (scheme names or hex values)
+		if !isValidColor(source) {
+			if isValidHexColor(source) {
+				// Already valid hex, shouldn't reach here
+				return nil, fmt.Errorf("internal error validating source color: '%s'", source)
+			}
+			return nil, fmt.Errorf("invalid source color: '%s'. Must be a valid scheme color (%s) or 6-digit hex color (e.g., AABBCC)",
 				source, getValidColorsString())
 		}
 
-		if !ValidSchemeColors[target] {
-			return nil, fmt.Errorf("invalid target color: '%s'. Valid colors are: %s",
+		if !isValidColor(target) {
+			if isValidHexColor(target) {
+				// Already valid hex, shouldn't reach here
+				return nil, fmt.Errorf("internal error validating target color: '%s'", target)
+			}
+			return nil, fmt.Errorf("invalid target color: '%s'. Must be a valid scheme color (%s) or 6-digit hex color (e.g., AABBCC)",
 				target, getValidColorsString())
 		}
 

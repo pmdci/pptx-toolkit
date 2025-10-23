@@ -325,7 +325,14 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 			return nil
 		}
 
-		modified, err := ReplaceSchemeColors(content, colorMapping)
+		// Apply scheme → scheme/hex replacements
+		modified, err := ReplaceSchemeColorsWithSrgb(content, colorMapping)
+		if err != nil {
+			return nil
+		}
+
+		// Apply hex → scheme/hex replacements
+		modified, err = ReplaceSrgbColors(modified, colorMapping)
 		if err != nil {
 			return nil
 		}

@@ -24,10 +24,29 @@ var colorListCmd = &cobra.Command{
 
 var colorSwapCmd = &cobra.Command{
 	Use:   "swap <input.pptx> <output.pptx> <mapping>",
-	Short: "Swap scheme color references in slides",
-	Long: `Swap scheme color references in slides.
+	Short: "Swap color references in slides",
+	Long: `Swap color references in slides.
 
-Example: pptx-toolkit color swap input.pptx output.pptx "accent1:accent3"`,
+Supports swapping between scheme colors (e.g., accent1, dk1) and hex RGB values (e.g., AABBCC, FF0000).
+
+Examples:
+  # Scheme to scheme
+  pptx-toolkit color swap input.pptx output.pptx "accent1:accent3"
+
+  # Scheme to hex
+  pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC"
+
+  # Hex to scheme
+  pptx-toolkit color swap input.pptx output.pptx "AABBCC:accent2"
+
+  # Hex to hex
+  pptx-toolkit color swap input.pptx output.pptx "FF0000:00FF00"
+
+  # Multiple mappings
+  pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC,AABBCC:accent2,FF0000:00FF00"
+
+  # Filter by theme
+  pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC" --theme theme1`,
 	Args: cobra.ExactArgs(3),
 	RunE: runColorSwap,
 }

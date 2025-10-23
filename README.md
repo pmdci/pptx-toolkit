@@ -1,10 +1,15 @@
-# pptx-toolkit
+# PPTX-Toolkit
 
-A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap scheme color references in slides without modifying theme definitions.
+A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap color references (scheme colors and hex RGB values) in slides without modifying theme definitions.
 
 ## What it does
 
-pptx-toolkit reads PowerPoint files and manipulates scheme color references (like `accent1`, `accent5`) throughout slides, layouts, and masters. It supports atomic many-to-one mappings and theme filtering, making it easy to rebrand presentations without touching the actual theme colors.
+pptx-toolkit reads PowerPoint files and manipulates color references throughout slides, layouts, and masters. You can swap between:
+
+- **Scheme colors** (like `accent1`, `accent5`)
+- **Hex RGB values** (like `AABBCC`, `FF0000`)
+
+It supports atomic many-to-one mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
 
 ## Installation
 
@@ -78,17 +83,26 @@ Colors:
 
 ### Swap color references
 
-Replace scheme color references throughout the presentation:
+Replace color references throughout the presentation. Supports both scheme colors (e.g., `accent1`) and hex RGB values (e.g., `AABBCC`).
 
 ```bash
-# Single mapping
+# Scheme to scheme
 pptx-toolkit color swap input.pptx output.pptx "accent1:accent3"
+
+# Scheme to hex
+pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC"
+
+# Hex to scheme
+pptx-toolkit color swap input.pptx output.pptx "AABBCC:accent2"
+
+# Hex to hex
+pptx-toolkit color swap input.pptx output.pptx "FF0000:00FF00"
 
 # Many-to-one mapping (atomic)
 pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent5:accent3"
 
-# Multiple mappings
-pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent3:accent4"
+# Mixed mappings (scheme + hex)
+pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC,000000:accent2,FF0000:00FF00"
 ```
 
 **Important:** Replacements are **atomic**, not cascading. In the example above:
@@ -98,23 +112,31 @@ pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent3:accent4"
 
 ### Filter by theme
 
-Only process specific themes when a PowerPoint file contains multiple themes:
+Only process specific themes when a PowerPoint file contains multiple themes. Works with both scheme and hex color mappings:
 
 ```bash
 # Process only theme1
 pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1
 
+# Filter by theme with hex colors
+pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC,000000:accent2" --theme theme1
+
 # Process multiple themes
 pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1,theme2
 ```
 
-### Valid scheme color names
+### Valid color formats
 
-PowerPoint scheme colors you can reference:
+**Scheme colors** (PowerPoint theme colors):
 
 - **Text/Background**: `dk1`, `lt1`, `dk2`, `lt2`
 - **Accents**: `accent1`, `accent2`, `accent3`, `accent4`, `accent5`, `accent6`
 - **Hyperlinks**: `hlink`, `folHlink`
+
+**Hex RGB colors**:
+
+- 6-digit hex format (case-insensitive): `AABBCC`, `ff0000`, `00FF00`
+- Do NOT include the `#` symbol
 
 ## Why pptx-toolkit?
 
@@ -132,6 +154,8 @@ Most PowerPoint manipulation tools require heavy dependencies like Python, .NET,
 **Use cases:**
 
 - Rebrand presentations by swapping color schemes
+- Replace hardcoded hex colors with theme colors for consistency
+- Convert theme colors to specific hex values for brand compliance
 - Unify color usage across multiple presentations
 - Fix accidental color misuse in slide decks
 - Automate presentation styling in CI/CD pipelines
