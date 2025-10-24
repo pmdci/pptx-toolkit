@@ -87,22 +87,22 @@ Replace color references throughout the presentation. Supports both scheme color
 
 ```bash
 # Scheme to scheme
-pptx-toolkit color swap input.pptx output.pptx "accent1:accent3"
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
 
 # Scheme to hex
-pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC"
+pptx-toolkit color swap "accent1:BBFFCC" input.pptx output.pptx
 
 # Hex to scheme
-pptx-toolkit color swap input.pptx output.pptx "AABBCC:accent2"
+pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx
 
 # Hex to hex
-pptx-toolkit color swap input.pptx output.pptx "FF0000:00FF00"
+pptx-toolkit color swap "FF0000:00FF00" input.pptx output.pptx
 
 # Many-to-one mapping (atomic)
-pptx-toolkit color swap input.pptx output.pptx "accent1:accent3,accent5:accent3"
+pptx-toolkit color swap "accent1:accent3,accent5:accent3" input.pptx output.pptx
 
 # Mixed mappings (scheme + hex)
-pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC,000000:accent2,FF0000:00FF00"
+pptx-toolkit color swap "accent1:BBFFCC,000000:accent2,FF0000:00FF00" input.pptx output.pptx
 ```
 
 **Important:** Replacements are **atomic**, not cascading. In the example above:
@@ -116,13 +116,13 @@ Only process specific themes when a PowerPoint file contains multiple themes. Wo
 
 ```bash
 # Process only theme1
-pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --theme theme1
 
 # Filter by theme with hex colors
-pptx-toolkit color swap input.pptx output.pptx "accent1:BBFFCC,000000:accent2" --theme theme1
+pptx-toolkit color swap "accent1:BBFFCC,000000:accent2" input.pptx output.pptx --theme theme1
 
 # Process multiple themes
-pptx-toolkit color swap input.pptx output.pptx "accent1:accent3" --theme theme1,theme2
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --theme theme1,theme2
 ```
 
 ### Valid color formats

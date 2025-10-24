@@ -28,10 +28,10 @@ dist/
 *.swo
 *~
 
-# Internal AI-related stuff
+# Internal AI-related stuff (but keep .llm/ docs!)
 .claude/
-.llm/
 AGENTS.md
+.llm/
 CLAUDE.md
 
 # OS generated files
@@ -47,6 +47,8 @@ Thumbs.db
 .env
 .env.local
 
-# PowerPoint files (except test fixtures)
+# PowerPoint files (except automated test fixtures)
 *.pptx
+tests/
+cmd/**/testdata/**extracted**/
 !cmd/**/testdata/**/*.pptx

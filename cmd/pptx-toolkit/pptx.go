@@ -217,6 +217,62 @@ func shouldProcessFile(filePath, tempDir string, themeFilter []string,
 	return true
 }
 
+// validateThemeFilter checks if all themes in the filter exist in the presentation
+func validateThemeFilter(themeFilter []string, masterToTheme map[string]string) error {
+	if len(themeFilter) == 0 {
+		return nil
+	}
+
+	// Get all available themes
+	availableThemes := make(map[string]bool)
+	for _, theme := range masterToTheme {
+		// Normalize to handle both "theme1" and "theme1.xml"
+		themeBase := strings.TrimSuffix(theme, ".xml")
+		availableThemes[themeBase] = true
+		availableThemes[theme] = true
+	}
+
+	// Check each theme in the filter
+	var notFound []string
+	for _, theme := range themeFilter {
+		themeBase := strings.TrimSuffix(theme, ".xml")
+		if !availableThemes[theme] && !availableThemes[themeBase] {
+			notFound = append(notFound, theme)
+		}
+	}
+
+	if len(notFound) > 0 {
+		// Get sorted list of available themes for error message
+		uniqueThemes := make(map[string]bool)
+		for _, theme := range masterToTheme {
+			themeBase := strings.TrimSuffix(theme, ".xml")
+			uniqueThemes[themeBase] = true
+		}
+
+		var available []string
+		for theme := range uniqueThemes {
+			available = append(available, theme)
+		}
+
+		// Sort for consistent error messages
+		if len(available) > 1 {
+			for i := 0; i < len(available)-1; i++ {
+				for j := i + 1; j < len(available); j++ {
+					if available[i] > available[j] {
+						available[i], available[j] = available[j], available[i]
+					}
+				}
+			}
+		}
+
+		return fmt.Errorf("theme(s) not found: %s\nAvailable themes: %s",
+			strings.Join(notFound, ", "),
+			strings.Join(available, ", "))
+	}
+
+	return nil
+}
+
 // ProcessPPTX processes a PowerPoint file, replacing scheme color references
 func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string) (int, error) {
 	// Validate input
@@ -287,6 +343,11 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	// Build theme relationship mappings
 	masterToTheme, _ := buildThemeRelationships(tempDir)
 	layoutToMaster, _ := buildLayoutToMasterMapping(tempDir)
+
+	// Validate theme filter
+	if err := validateThemeFilter(themeFilter, masterToTheme); err != nil {
+		return 0, err
+	}
 
 	// Process XML files
 	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
