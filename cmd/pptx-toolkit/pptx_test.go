@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -142,32 +143,8 @@ func TestProcessPPTX(t *testing.T) {
 		t.Logf("Processed %d files with atomic replacement", filesProcessed)
 	})
 
-	t.Run("nonexistent theme filter", func(t *testing.T) {
-		// Create temp output file
-		outputFile, err := os.CreateTemp("", "output-*.pptx")
-		if err != nil {
-			t.Fatal(err)
-		}
-		outputPath := outputFile.Name()
-		outputFile.Close()
-		defer os.Remove(outputPath)
-
-		// Process with non-existent theme
-		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme999"})
-
-		if err != nil {
-			t.Fatalf("ProcessPPTX failed: %v", err)
-		}
-
-		// Should still create valid output, but process few/no files
-		if _, err := zip.OpenReader(outputPath); err != nil {
-			t.Errorf("output is not a valid ZIP: %v", err)
-		}
-
-		t.Logf("Processed %d files with nonexistent theme filter", filesProcessed)
-	})
 }
+
 
 func TestProcessPPTX_Errors(t *testing.T) {
 	t.Run("nonexistent input file", func(t *testing.T) {
@@ -188,6 +165,37 @@ func TestProcessPPTX_Errors(t *testing.T) {
 		_, err := ProcessPPTX(testPPTX, "/invalid/path/output.pptx", map[string]string{"accent1": "accent2"}, nil)
 		if err == nil {
 			t.Error("expected error for invalid output path, got nil")
+		}
+	})
+
+	t.Run("nonexistent theme filter", func(t *testing.T) {
+		testPPTX := filepath.Join("testdata", "test.pptx")
+
+		if _, err := os.Stat(testPPTX); os.IsNotExist(err) {
+			t.Skip("test.pptx fixture not found")
+		}
+
+		// Create temp output file
+		outputFile, err := os.CreateTemp("", "output-*.pptx")
+		if err != nil {
+			t.Fatal(err)
+		}
+		outputPath := outputFile.Name()
+		outputFile.Close()
+		defer os.Remove(outputPath)
+
+		// Process with non-existent theme - should error
+		mapping := map[string]string{"accent1": "accent6"}
+		_, err = ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme999"})
+
+		if err == nil {
+			t.Error("expected error for nonexistent theme, got nil")
+		}
+
+		// Should contain helpful error message
+		expectedMsg := "theme(s) not found"
+		if err != nil && !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("expected error to contain '%s', got: %v", expectedMsg, err)
 		}
 	})
 }
