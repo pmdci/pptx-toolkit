@@ -105,13 +105,19 @@ func runColorList(cmd *cobra.Command, args []string) error {
 }
 
 func runColorSwap(cmd *cobra.Command, args []string) error {
+	// Suppress usage and errors for validation errors - syntax errors are
+	// already handled by Cobra's Args validator. We'll print errors ourselves.
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
 	mappingStr := args[0]
 	inputFile := args[1]
 	outputFile := args[2]
 
 	// Validate input file
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return fmt.Errorf("input file not found: %s", inputFile)
+		cmd.PrintErrln("Error: input file not found:", inputFile)
+		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
 	// Validate output file
@@ -129,7 +135,8 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 	// Parse color mapping
 	colorMapping, err := ParseColorMapping(mappingStr)
 	if err != nil {
-		return fmt.Errorf("error: %w", err)
+		cmd.PrintErrln("Error:", err)
+		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
 	// Process the file
@@ -150,7 +157,8 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 
 	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter)
 	if err != nil {
-		return fmt.Errorf("error processing file: %w", err)
+		cmd.PrintErrf("\nError: %v\n", err)
+		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
 	cmd.Printf("✓ Successfully processed %d files\n", filesProcessed)

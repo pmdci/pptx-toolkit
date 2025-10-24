@@ -40,6 +40,8 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Flags().BoolP("version", "v", false, "version for pptx-toolkit")
 	rootCmd.AddCommand(colorCmd)
+	// Silence errors - subcommands print their own errors
+	rootCmd.SilenceErrors = true
 }
 
 func main() {
