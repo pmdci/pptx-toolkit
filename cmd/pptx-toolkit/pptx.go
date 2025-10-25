@@ -102,6 +102,46 @@ func buildLayoutToMasterMapping(tempDir string) (map[string]string, error) {
 	return mapping, nil
 }
 
+// filterSlidesByTheme returns only slides that use the specified themes
+func filterSlidesByTheme(tempDir string, slideNums []int, themeFilter []string, layoutToMaster, masterToTheme map[string]string) []int {
+	if len(themeFilter) == 0 || len(slideNums) == 0 {
+		return slideNums
+	}
+
+	// Build slide mapping to get file paths
+	slideMapping, err := BuildSlideMapping(tempDir)
+	if err != nil {
+		return nil
+	}
+
+	// Normalize theme filter
+	themeFiles := make(map[string]bool)
+	for _, theme := range themeFilter {
+		if strings.HasSuffix(theme, ".xml") {
+			themeFiles[theme] = true
+		} else {
+			themeFiles[theme+".xml"] = true
+		}
+	}
+
+	var matched []int
+	for _, slideNum := range slideNums {
+		slideRelPath, exists := slideMapping[slideNum]
+		if !exists {
+			continue
+		}
+
+		slidePath := filepath.Join(tempDir, slideRelPath)
+		theme, _ := getSlideTheme(slidePath, layoutToMaster, masterToTheme)
+
+		if theme != "" && themeFiles[theme] {
+			matched = append(matched, slideNum)
+		}
+	}
+
+	return matched
+}
+
 // getSlideTheme determines which theme a slide uses
 func getSlideTheme(slidePath string, layoutToMaster, masterToTheme map[string]string) (string, error) {
 	slideName := filepath.Base(slidePath)
@@ -335,15 +375,16 @@ func getXMLPatterns(scope Scope) []string {
 }
 
 // ProcessPPTX processes a PowerPoint file, replacing scheme color references
-func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string, scope string, slideFilter []int) (int, error) {
+// Returns: filesProcessed, matchedSlides (nil if not applicable), error
+func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string, scope string, slideFilter []int) (int, *int, error) {
 	// Validate input
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-		return 0, fmt.Errorf("input file not found: %s", inputPath)
+		return 0, nil, fmt.Errorf("input file not found: %s", inputPath)
 	}
 
 	// Validate scope
 	if err := validateScope(scope); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Get XML file patterns based on scope
@@ -354,14 +395,14 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	// Create temporary directory
 	tempDir, err := os.MkdirTemp("", "pptx-toolkit-*")
 	if err != nil {
-		return 0, fmt.Errorf("failed to create temp directory: %w", err)
+		return 0, nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	// Extract PPTX
 	zipReader, err := zip.OpenReader(inputPath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to open PPTX: %w", err)
+		return 0, nil, fmt.Errorf("failed to open PPTX: %w", err)
 	}
 	defer zipReader.Close()
 
@@ -374,18 +415,18 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		}
 
 		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 
 		outFile, err := os.Create(filePath)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 
 		rc, err := file.Open()
 		if err != nil {
 			outFile.Close()
-			return 0, err
+			return 0, nil, err
 		}
 
 		_, err = io.Copy(outFile, rc)
@@ -393,7 +434,7 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		rc.Close()
 
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 
@@ -403,21 +444,31 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 
 	// Validate theme filter
 	if err := validateThemeFilter(themeFilter, masterToTheme); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Build slide filter mapping if slides specified
 	var allowedFiles map[string]bool
+	var matchedSlides *int
 	if len(slideFilter) > 0 {
 		// Validate slides exist
 		if err := ValidateSlideNumbers(tempDir, slideFilter); err != nil {
-			return 0, err
+			return 0, nil, err
+		}
+
+		// If theme filter is also specified, filter slides to only those using the specified themes
+		filteredSlides := slideFilter
+		if len(themeFilter) > 0 {
+			filteredSlides = filterSlidesByTheme(tempDir, slideFilter, themeFilter, layoutToMaster, masterToTheme)
+			// Track matched count for output feedback
+			count := len(filteredSlides)
+			matchedSlides = &count
 		}
 
 		// Build dependency graph (slides + embedded content)
-		allowedFiles, err = GetSlideContent(tempDir, slideFilter)
+		allowedFiles, err = GetSlideContent(tempDir, filteredSlides)
 		if err != nil {
-			return 0, fmt.Errorf("failed to build slide content mapping: %w", err)
+			return 0, nil, fmt.Errorf("failed to build slide content mapping: %w", err)
 		}
 	}
 
@@ -484,13 +535,13 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	})
 
 	if err != nil {
-		return filesProcessed, err
+		return filesProcessed, matchedSlides, err
 	}
 
 	// Create output ZIP
 	outFile, err := os.Create(outputPath)
 	if err != nil {
-		return filesProcessed, fmt.Errorf("failed to create output file: %w", err)
+		return filesProcessed, matchedSlides, fmt.Errorf("failed to create output file: %w", err)
 	}
 	defer outFile.Close()
 
@@ -526,5 +577,5 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		return err
 	})
 
-	return filesProcessed, err
+	return filesProcessed, matchedSlides, err
 }

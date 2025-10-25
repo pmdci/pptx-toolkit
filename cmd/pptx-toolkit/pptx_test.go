@@ -29,7 +29,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process with a simple mapping
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "all", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "all", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -59,7 +59,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process only theme1
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "all", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "all", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -89,7 +89,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process theme1 and theme2
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1", "theme2"}, "all", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1", "theme2"}, "all", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -123,7 +123,7 @@ func TestProcessPPTX(t *testing.T) {
 			"accent3": "accent4",
 		}
 
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "all", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "all", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -154,7 +154,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process only content
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -183,7 +183,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process only master
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "master", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "master", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -212,7 +212,7 @@ func TestProcessPPTX(t *testing.T) {
 
 		// Process content in theme1 only
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "content", nil)
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "content", nil)
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -235,7 +235,7 @@ func TestProcessPPTX(t *testing.T) {
 
 func TestProcessPPTX_Errors(t *testing.T) {
 	t.Run("nonexistent input file", func(t *testing.T) {
-		_, err := ProcessPPTX("/nonexistent/file.pptx", "/tmp/output.pptx", map[string]string{"accent1": "accent2"}, nil, "all", nil)
+		_, _, err := ProcessPPTX("/nonexistent/file.pptx", "/tmp/output.pptx", map[string]string{"accent1": "accent2"}, nil, "all", nil)
 		if err == nil {
 			t.Error("expected error for nonexistent file, got nil")
 		}
@@ -249,7 +249,7 @@ func TestProcessPPTX_Errors(t *testing.T) {
 		}
 
 		// Try to write to invalid path
-		_, err := ProcessPPTX(testPPTX, "/invalid/path/output.pptx", map[string]string{"accent1": "accent2"}, nil, "all", nil)
+		_, _, err := ProcessPPTX(testPPTX, "/invalid/path/output.pptx", map[string]string{"accent1": "accent2"}, nil, "all", nil)
 		if err == nil {
 			t.Error("expected error for invalid output path, got nil")
 		}
@@ -273,7 +273,7 @@ func TestProcessPPTX_Errors(t *testing.T) {
 
 		// Process with non-existent theme - should error
 		mapping := map[string]string{"accent1": "accent6"}
-		_, err = ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme999"}, "all", nil)
+		_, _, err = ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme999"}, "all", nil)
 
 		if err == nil {
 			t.Error("expected error for nonexistent theme, got nil")
@@ -303,7 +303,7 @@ func TestProcessPPTX_Errors(t *testing.T) {
 
 		// Invalid scope should error
 		mapping := map[string]string{"accent1": "accent6"}
-		_, err = ProcessPPTX(testPPTX, outputPath, mapping, nil, "invalid", nil)
+		_, _, err = ProcessPPTX(testPPTX, outputPath, mapping, nil, "invalid", nil)
 
 		if err == nil {
 			t.Error("expected error for invalid scope, got nil")
@@ -331,7 +331,7 @@ func TestProcessPPTX_Errors(t *testing.T) {
 
 		// Process with non-existent slide - should error
 		mapping := map[string]string{"accent1": "accent6"}
-		_, err = ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{99})
+		_, _, err = ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{99})
 
 		if err == nil {
 			t.Error("expected error for nonexistent slide, got nil")
@@ -361,7 +361,7 @@ func TestProcessPPTX_SlideFiltering(t *testing.T) {
 
 		// Process only slides 3,4 (diagram + chart from research doc)
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{3, 4})
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{3, 4})
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -393,7 +393,7 @@ func TestProcessPPTX_SlideFiltering(t *testing.T) {
 
 		// Process only slide 1 (simple slide, no embedded content)
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{1})
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{1})
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -418,7 +418,7 @@ func TestProcessPPTX_SlideFiltering(t *testing.T) {
 
 		// Process slides 1-4 with theme1 filter
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "content", []int{1, 2, 3, 4})
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme1"}, "content", []int{1, 2, 3, 4})
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -444,7 +444,7 @@ func TestProcessPPTX_SlideFiltering(t *testing.T) {
 
 		// Process slides 1-3 (range)
 		mapping := map[string]string{"accent1": "accent6"}
-		filesProcessed, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{1, 2, 3})
+		filesProcessed, _, err := ProcessPPTX(testPPTX, outputPath, mapping, nil, "content", []int{1, 2, 3})
 
 		if err != nil {
 			t.Fatalf("ProcessPPTX failed: %v", err)
@@ -457,6 +457,38 @@ func TestProcessPPTX_SlideFiltering(t *testing.T) {
 		}
 
 		t.Logf("Processed %d files for slides 1-3", filesProcessed)
+	})
+
+	t.Run("no match - slides with wrong theme", func(t *testing.T) {
+		outputFile, err := os.CreateTemp("", "output-*.pptx")
+		if err != nil {
+			t.Fatal(err)
+		}
+		outputPath := outputFile.Name()
+		outputFile.Close()
+		defer os.Remove(outputPath)
+
+		// Process slide 2 (theme1) with theme2 filter - should match nothing
+		mapping := map[string]string{"accent1": "accent6"}
+		filesProcessed, matchedSlides, err := ProcessPPTX(testPPTX, outputPath, mapping, []string{"theme2"}, "content", []int{2})
+
+		if err != nil {
+			t.Fatalf("ProcessPPTX failed: %v", err)
+		}
+
+		// Should process 0 files (no match)
+		if filesProcessed != 0 {
+			t.Errorf("Expected 0 files processed, got %d", filesProcessed)
+		}
+
+		// Should return matched count of 0
+		if matchedSlides == nil {
+			t.Error("Expected matchedSlides to be non-nil")
+		} else if *matchedSlides != 0 {
+			t.Errorf("Expected 0 matched slides, got %d", *matchedSlides)
+		}
+
+		t.Logf("Correctly processed 0 files with 0 matched slides")
 	})
 }
 

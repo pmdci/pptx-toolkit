@@ -10,12 +10,12 @@ import (
 
 // ProcessingConfig holds configuration for processing operations
 type ProcessingConfig struct {
-	Mappings    []string // Color mappings (e.g., ["accent1→accent3"])
-	NewName     string   // New name for rename operations
-	Themes      []string // Theme filter or nil for all
-	Slides      []int    // Slide filter or nil for all
-	Scope       string   // "all", "content", "master"
-	ScopeSource string   // "default", "explicit", "auto (from --slides)"
+	Mappings      []string // Color mappings (e.g., ["accent1→accent3"])
+	NewName       string   // New name for rename operations
+	Themes        []string // Theme filter or nil for all
+	Slides        []int    // Slide filter or nil for all
+	SlidesMatched *int     // Number of slides matched (nil if not applicable)
+	Scope         string   // "all", "content", "master"
 }
 
 // ValidateInputFile checks if the input file exists
@@ -69,14 +69,22 @@ func PrintProcessingHeader(cmd *cobra.Command, inputFile string, config Processi
 		cmd.Printf("Slides: %s\n", formatSlides(config.Slides))
 	}
 
-	// Print scope
-	scopeMsg := config.Scope
-	if config.ScopeSource == "auto" {
-		scopeMsg = fmt.Sprintf("%s (automatically set when using --slides)", config.Scope)
+	// Print scope (only when not default "all")
+	if config.Scope != "" && config.Scope != "all" {
+		cmd.Printf("Scope: %s\n", config.Scope)
 	}
-	if config.Scope != "" && (len(config.Slides) > 0 || config.Scope != "all") {
-		cmd.Printf("Scope: %s\n", scopeMsg)
-	}
+
+	// Print matched slides feedback (only when both --slides and --theme are used)
+	if config.SlidesMatched != nil {
+		switch *config.SlidesMatched {
+        case 0:
+                cmd.Println("→ No slides matched the theme filter")
+        case 1:
+                cmd.Println("→ 1 slide matched")
+        default:
+                cmd.Printf("→ %d slides matched\n", *config.SlidesMatched)
+        }
+    }
 }
 
 // PrintSuccess prints a consistent success message

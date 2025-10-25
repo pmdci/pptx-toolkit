@@ -34,8 +34,7 @@ Scope options:
 
 Slide filtering:
   Use --slides to target specific slides. Automatically includes embedded content (charts, diagrams, notes).
-  IMPORTANT: --slides can only be used with --scope content (explicit or implicit).
-  If you don't specify --scope, it defaults to content when using --slides.
+  IMPORTANT: --slides can only be used with --scope content.
 
 Examples:
   # Scheme to scheme
@@ -190,23 +189,12 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate scope compatibility with slides
-	scopeSource := "default"
 	if len(slides) > 0 {
 		// --slides can only be used with --scope content
-		if scopeFilter != "all" && scopeFilter != "content" {
+		if scopeFilter != "content" {
 			cmd.PrintErrln("Error: --slides can only be used with --scope content")
 			return fmt.Errorf("") // Return empty error to set exit code
 		}
-
-		// Auto-set scope to content if not explicitly set
-		if scopeFilter == "all" {
-			scopeFilter = "content"
-			scopeSource = "auto"
-		} else {
-			scopeSource = "explicit"
-		}
-	} else if scopeFilter != "all" {
-		scopeSource = "explicit"
 	}
 
 	// Format mappings for display
@@ -215,21 +203,21 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 		mappingStrs = append(mappingStrs, fmt.Sprintf("%s→%s", source, target))
 	}
 
-	// Print processing header
-	config := ProcessingConfig{
-		Mappings:    mappingStrs,
-		Themes:      themeFilter,
-		Slides:      slides,
-		Scope:       scopeFilter,
-		ScopeSource: scopeSource,
-	}
-	PrintProcessingHeader(cmd, inputFile, config)
-
-	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter, scopeFilter, slides)
+	filesProcessed, matchedSlides, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter, scopeFilter, slides)
 	if err != nil {
 		cmd.PrintErrf("\nError: %v\n", err)
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
+
+	// Print processing header after ProcessPPTX to include matched slides count
+	config := ProcessingConfig{
+		Mappings:      mappingStrs,
+		Themes:        themeFilter,
+		Slides:        slides,
+		SlidesMatched: matchedSlides,
+		Scope:         scopeFilter,
+	}
+	PrintProcessingHeader(cmd, inputFile, config)
 
 	PrintSuccess(cmd, filesProcessed, "files", outputFile)
 

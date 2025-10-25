@@ -166,7 +166,7 @@ pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3,5-
 pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --theme theme1
 ```
 
-**Important:** `--slides` can only be used with `--scope content` (explicit or implicit). If you don't specify `--scope`, it defaults to `content` when using `--slides`.
+**Important:** `--slides` can only be used with `--scope content`.
 
 **What gets processed:**
 - Specified slide files
