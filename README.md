@@ -148,6 +148,32 @@ pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content
 - `content` - Process user content only (slides, charts, diagrams, notes)
 - `master` - Process master infrastructure only (slideMasters, slideLayouts, notesMasters, handoutMasters)
 
+### Slide filtering
+
+Target specific slides for color swaps. Automatically includes embedded content (charts, diagrams, notes).
+
+```bash
+# Process specific slides
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3
+
+# Process slide range
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 5-8
+
+# Combine ranges and individual slides
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3,5-8,10
+
+# Combine with theme filtering
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --theme theme1
+```
+
+**Important:** `--slides` can only be used with `--scope content` (explicit or implicit). If you don't specify `--scope`, it defaults to `content` when using `--slides`.
+
+**What gets processed:**
+- Specified slide files
+- Charts embedded in those slides (including colors.xml, style.xml)
+- Diagrams/SmartArt in those slides (all 5 files: data, layout, colors, quickStyle, drawing)
+- Presenter notes for those slides
+
 ### Valid color formats
 
 **Scheme colors** (PowerPoint theme colors):

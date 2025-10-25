@@ -335,7 +335,7 @@ func getXMLPatterns(scope Scope) []string {
 }
 
 // ProcessPPTX processes a PowerPoint file, replacing scheme color references
-func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string, scope string) (int, error) {
+func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string, scope string, slideFilter []int) (int, error) {
 	// Validate input
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		return 0, fmt.Errorf("input file not found: %s", inputPath)
@@ -406,6 +406,21 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		return 0, err
 	}
 
+	// Build slide filter mapping if slides specified
+	var allowedFiles map[string]bool
+	if len(slideFilter) > 0 {
+		// Validate slides exist
+		if err := ValidateSlideNumbers(tempDir, slideFilter); err != nil {
+			return 0, err
+		}
+
+		// Build dependency graph (slides + embedded content)
+		allowedFiles, err = GetSlideContent(tempDir, slideFilter)
+		if err != nil {
+			return 0, fmt.Errorf("failed to build slide content mapping: %w", err)
+		}
+	}
+
 	// Process XML files
 	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -434,6 +449,11 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 
 		// Check theme filter
 		if !shouldProcessFile(path, tempDir, themeFilter, layoutToMaster, masterToTheme) {
+			return nil
+		}
+
+		// Check slide filter
+		if len(slideFilter) > 0 && !allowedFiles[relPath] {
 			return nil
 		}
 

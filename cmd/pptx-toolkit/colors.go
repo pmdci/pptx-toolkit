@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -34,6 +32,11 @@ Scope options:
   content  - Process user content only (slides, charts, diagrams, notes)
   master   - Process master infrastructure only (slideMasters, slideLayouts, notesMasters, handoutMasters)
 
+Slide filtering:
+  Use --slides to target specific slides. Automatically includes embedded content (charts, diagrams, notes).
+  IMPORTANT: --slides can only be used with --scope content (explicit or implicit).
+  If you don't specify --scope, it defaults to content when using --slides.
+
 Examples:
   # Scheme to scheme
   pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
@@ -47,8 +50,14 @@ Examples:
   # Update master template only
   pptx-toolkit color swap "accent1:accent5" input.pptx output.pptx --scope master
 
-  # Combine scope and theme filtering
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content --theme theme1
+  # Process specific slides (auto-sets scope to content)
+  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3,5
+
+  # Process slide range
+  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 5-8
+
+  # Combine slides with theme filtering
+  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --theme theme1
 
   # Multiple mappings
   pptx-toolkit color swap "accent1:BBFFCC,AABBCC:accent2,FF0000:00FF00" input.pptx output.pptx`,
@@ -80,6 +89,7 @@ var (
 	themeFilter       []string
 	renameThemeFilter []string
 	scopeFilter       string
+	slideFilter       string
 )
 
 func init() {
@@ -92,6 +102,9 @@ func init() {
 
 	// Add --scope flag to swap command
 	colorSwapCmd.Flags().StringVar(&scopeFilter, "scope", "all", "Processing scope (all, content, master)")
+
+	// Add --slides flag to swap command
+	colorSwapCmd.Flags().StringVar(&slideFilter, "slides", "", "Comma-separated slide numbers or ranges (e.g., 1,3,5-8)")
 
 	// Add --theme flag to rename command
 	colorRenameCmd.Flags().StringSliceVar(&renameThemeFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
@@ -149,21 +162,14 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 	outputFile := args[2]
 
 	// Validate input file
-	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		cmd.PrintErrln("Error: input file not found:", inputFile)
+	if err := ValidateInputFile(inputFile); err != nil {
+		cmd.PrintErrln("Error:", err)
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	// Validate output file
-	if _, err := os.Stat(outputFile); err == nil {
-		// File exists, prompt for overwrite
-		cmd.Printf("Output file '%s' already exists. Overwrite? (y/n): ", outputFile)
-		var response string
-		fmt.Scanln(&response)
-		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
-			cmd.Println("Aborted.")
-			return nil
-		}
+	// Prompt for overwrite if needed
+	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
+		return err
 	}
 
 	// Parse color mapping
@@ -173,30 +179,59 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	// Process the file
-	cmd.Printf("Processing %s...\n", inputFile)
+	// Parse slide filter if provided
+	var slides []int
+	if slideFilter != "" {
+		slides, err = ParseSlideRange(slideFilter)
+		if err != nil {
+			cmd.PrintErrln("Error:", err)
+			return fmt.Errorf("") // Return empty error to set exit code
+		}
+	}
+
+	// Validate scope compatibility with slides
+	scopeSource := "default"
+	if len(slides) > 0 {
+		// --slides can only be used with --scope content
+		if scopeFilter != "all" && scopeFilter != "content" {
+			cmd.PrintErrln("Error: --slides can only be used with --scope content")
+			return fmt.Errorf("") // Return empty error to set exit code
+		}
+
+		// Auto-set scope to content if not explicitly set
+		if scopeFilter == "all" {
+			scopeFilter = "content"
+			scopeSource = "auto"
+		} else {
+			scopeSource = "explicit"
+		}
+	} else if scopeFilter != "all" {
+		scopeSource = "explicit"
+	}
 
 	// Format mappings for display
 	var mappingStrs []string
 	for source, target := range colorMapping {
 		mappingStrs = append(mappingStrs, fmt.Sprintf("%s→%s", source, target))
 	}
-	cmd.Printf("Mappings: %s\n", strings.Join(mappingStrs, ", "))
 
-	if len(themeFilter) > 0 {
-		cmd.Printf("Themes: %s\n", strings.Join(themeFilter, ", "))
-	} else {
-		cmd.Println("Themes: all")
+	// Print processing header
+	config := ProcessingConfig{
+		Mappings:    mappingStrs,
+		Themes:      themeFilter,
+		Slides:      slides,
+		Scope:       scopeFilter,
+		ScopeSource: scopeSource,
 	}
+	PrintProcessingHeader(cmd, inputFile, config)
 
-	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter, scopeFilter)
+	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter, scopeFilter, slides)
 	if err != nil {
 		cmd.PrintErrf("\nError: %v\n", err)
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	cmd.Printf("✓ Successfully processed %d files\n", filesProcessed)
-	cmd.Printf("✓ Output saved to %s\n", outputFile)
+	PrintSuccess(cmd, filesProcessed, "files", outputFile)
 
 	return nil
 }
@@ -218,32 +253,22 @@ func runColorRename(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate input file
-	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		cmd.PrintErrln("Error: input file not found:", inputFile)
+	if err := ValidateInputFile(inputFile); err != nil {
+		cmd.PrintErrln("Error:", err)
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	// Validate output file
-	if _, err := os.Stat(outputFile); err == nil {
-		// File exists, prompt for overwrite
-		cmd.Printf("Output file '%s' already exists. Overwrite? (y/n): ", outputFile)
-		var response string
-		fmt.Scanln(&response)
-		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
-			cmd.Println("Aborted.")
-			return nil
-		}
+	// Prompt for overwrite if needed
+	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
+		return err
 	}
 
-	// Process the file
-	cmd.Printf("Processing %s...\n", inputFile)
-	cmd.Printf("New colour scheme name: %s\n", newName)
-
-	if len(renameThemeFilter) > 0 {
-		cmd.Printf("Themes: %s\n", strings.Join(renameThemeFilter, ", "))
-	} else {
-		cmd.Println("Themes: all")
+	// Print processing header
+	config := ProcessingConfig{
+		NewName: newName,
+		Themes:  renameThemeFilter,
 	}
+	PrintProcessingHeader(cmd, inputFile, config)
 
 	themesRenamed, err := RenameColorScheme(inputFile, outputFile, newName, renameThemeFilter)
 	if err != nil {
@@ -251,8 +276,7 @@ func runColorRename(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	cmd.Printf("✓ Successfully renamed colour scheme in %d theme(s)\n", themesRenamed)
-	cmd.Printf("✓ Output saved to %s\n", outputFile)
+	PrintSuccess(cmd, themesRenamed, "theme(s)", outputFile)
 
 	return nil
 }
