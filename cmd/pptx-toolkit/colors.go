@@ -51,16 +51,41 @@ Examples:
 	RunE: runColorSwap,
 }
 
+var colorRenameCmd = &cobra.Command{
+	Use:   "rename <new-name> <input.pptx> <output.pptx>",
+	Short: "Rename colour scheme(s)",
+	Long: `Rename colour scheme(s) in themes.
+
+By default, renames the colour scheme in all themes. Use --theme to target specific themes.
+
+Examples:
+  # Rename in all themes
+  pptx-toolkit color rename "Azure Blue" input.pptx output.pptx
+
+  # Rename in specific theme
+  pptx-toolkit color rename "Corporate Brand" input.pptx output.pptx --theme theme1
+
+  # Rename in multiple themes
+  pptx-toolkit color rename "New Scheme" input.pptx output.pptx --theme theme1,theme2`,
+	Args: cobra.ExactArgs(3),
+	RunE: runColorRename,
+}
+
 var (
-	themeFilter []string
+	themeFilter       []string
+	renameThemeFilter []string
 )
 
 func init() {
 	colorCmd.AddCommand(colorListCmd)
 	colorCmd.AddCommand(colorSwapCmd)
+	colorCmd.AddCommand(colorRenameCmd)
 
 	// Add --theme flag to swap command
 	colorSwapCmd.Flags().StringSliceVar(&themeFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
+
+	// Add --theme flag to rename command
+	colorRenameCmd.Flags().StringSliceVar(&renameThemeFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 }
 
 func runColorList(cmd *cobra.Command, args []string) error {
@@ -162,6 +187,62 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("✓ Successfully processed %d files\n", filesProcessed)
+	cmd.Printf("✓ Output saved to %s\n", outputFile)
+
+	return nil
+}
+
+func runColorRename(cmd *cobra.Command, args []string) error {
+	// Suppress usage and errors for validation errors - syntax errors are
+	// already handled by Cobra's Args validator. We'll print errors ourselves.
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	newName := args[0]
+	inputFile := args[1]
+	outputFile := args[2]
+
+	// Validate name
+	if err := ValidateName(newName); err != nil {
+		cmd.PrintErrln("Error:", err)
+		return fmt.Errorf("") // Return empty error to set exit code
+	}
+
+	// Validate input file
+	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
+		cmd.PrintErrln("Error: input file not found:", inputFile)
+		return fmt.Errorf("") // Return empty error to set exit code
+	}
+
+	// Validate output file
+	if _, err := os.Stat(outputFile); err == nil {
+		// File exists, prompt for overwrite
+		cmd.Printf("Output file '%s' already exists. Overwrite? (y/n): ", outputFile)
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+			cmd.Println("Aborted.")
+			return nil
+		}
+	}
+
+	// Process the file
+	cmd.Printf("Processing %s...\n", inputFile)
+	cmd.Printf("New colour scheme name: %s\n", newName)
+
+	if len(renameThemeFilter) > 0 {
+		cmd.Printf("Themes: %s\n", strings.Join(renameThemeFilter, ", "))
+	} else {
+		cmd.Println("Themes: all")
+	}
+
+	themesRenamed, err := RenameColorScheme(inputFile, outputFile, newName, renameThemeFilter)
+	if err != nil {
+		cmd.PrintErrf("\nError: %v\n", err)
+		return fmt.Errorf("") // Return empty error to set exit code
+	}
+
+	cmd.Printf("✓ Successfully renamed colour scheme in %d theme(s)\n", themesRenamed)
 	cmd.Printf("✓ Output saved to %s\n", outputFile)
 
 	return nil
