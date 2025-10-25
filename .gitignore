@@ -52,3 +52,4 @@ Thumbs.db
 tests/
 cmd/**/testdata/**extracted**/
 !cmd/**/testdata/**/*.pptx
+cmd/**/testdata/**/~$*.pptx

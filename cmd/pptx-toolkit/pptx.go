@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/antchfx/xmlquery"
@@ -273,24 +274,80 @@ func validateThemeFilter(themeFilter []string, masterToTheme map[string]string) 
 	return nil
 }
 
+// Scope represents the processing scope for color operations
+type Scope string
+
+const (
+	ScopeAll     Scope = "all"
+	ScopeContent Scope = "content"
+	ScopeMaster  Scope = "master"
+)
+
+// ValidScopes defines all valid scope values
+var ValidScopes = map[Scope]bool{
+	ScopeAll:     true,
+	ScopeContent: true,
+	ScopeMaster:  true,
+}
+
+// validateScope checks if a scope value is valid
+func validateScope(scope string) error {
+	if !ValidScopes[Scope(scope)] {
+		var validList []string
+		for s := range ValidScopes {
+			validList = append(validList, string(s))
+		}
+		// Sort for consistent error messages
+		sort.Strings(validList)
+		return fmt.Errorf("invalid scope '%s'. Valid values: %s",
+			scope, strings.Join(validList, ", "))
+	}
+	return nil
+}
+
+// getXMLPatterns returns the file patterns to process based on scope
+func getXMLPatterns(scope Scope) []string {
+	contentPatterns := []string{
+		"ppt/slides/",
+		"ppt/charts/",
+		"ppt/diagrams/",
+		"ppt/notesSlides/",
+	}
+
+	masterPatterns := []string{
+		"ppt/slideMasters/",
+		"ppt/slideLayouts/",
+		"ppt/notesMasters/",
+		"ppt/handoutMasters/",
+	}
+
+	switch scope {
+	case ScopeContent:
+		return contentPatterns
+	case ScopeMaster:
+		return masterPatterns
+	default: // ScopeAll
+		all := make([]string, 0, len(contentPatterns)+len(masterPatterns))
+		all = append(all, contentPatterns...)
+		all = append(all, masterPatterns...)
+		return all
+	}
+}
+
 // ProcessPPTX processes a PowerPoint file, replacing scheme color references
-func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string) (int, error) {
+func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, themeFilter []string, scope string) (int, error) {
 	// Validate input
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		return 0, fmt.Errorf("input file not found: %s", inputPath)
 	}
 
-	// XML file patterns to process
-	xmlPatterns := []string{
-		"ppt/slides/",
-		"ppt/slideLayouts/",
-		"ppt/slideMasters/",
-		"ppt/charts/",
-		"ppt/diagrams/",
-		"ppt/notesMasters/",
-		"ppt/notesSlides/",
-		"ppt/handoutMasters/",
+	// Validate scope
+	if err := validateScope(scope); err != nil {
+		return 0, err
 	}
+
+	// Get XML file patterns based on scope
+	xmlPatterns := getXMLPatterns(Scope(scope))
 
 	filesProcessed := 0
 

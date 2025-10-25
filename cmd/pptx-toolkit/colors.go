@@ -29,6 +29,11 @@ var colorSwapCmd = &cobra.Command{
 
 Supports swapping between scheme colors (e.g., accent1, dk1) and hex RGB values (e.g., AABBCC, FF0000).
 
+Scope options:
+  all      - Process all files (default)
+  content  - Process user content only (slides, charts, diagrams, notes)
+  master   - Process master infrastructure only (slideMasters, slideLayouts, notesMasters, handoutMasters)
+
 Examples:
   # Scheme to scheme
   pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
@@ -36,17 +41,17 @@ Examples:
   # Scheme to hex
   pptx-toolkit color swap "accent1:BBFFCC" input.pptx output.pptx
 
-  # Hex to scheme
-  pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx
+  # Fix user overrides in content only
+  pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx --scope content
 
-  # Hex to hex
-  pptx-toolkit color swap "FF0000:00FF00" input.pptx output.pptx
+  # Update master template only
+  pptx-toolkit color swap "accent1:accent5" input.pptx output.pptx --scope master
+
+  # Combine scope and theme filtering
+  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content --theme theme1
 
   # Multiple mappings
-  pptx-toolkit color swap "accent1:BBFFCC,AABBCC:accent2,FF0000:00FF00" input.pptx output.pptx
-
-  # Filter by theme
-  pptx-toolkit color swap "accent1:BBFFCC" input.pptx output.pptx --theme theme1`,
+  pptx-toolkit color swap "accent1:BBFFCC,AABBCC:accent2,FF0000:00FF00" input.pptx output.pptx`,
 	Args: cobra.ExactArgs(3),
 	RunE: runColorSwap,
 }
@@ -74,6 +79,7 @@ Examples:
 var (
 	themeFilter       []string
 	renameThemeFilter []string
+	scopeFilter       string
 )
 
 func init() {
@@ -83,6 +89,9 @@ func init() {
 
 	// Add --theme flag to swap command
 	colorSwapCmd.Flags().StringSliceVar(&themeFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
+
+	// Add --scope flag to swap command
+	colorSwapCmd.Flags().StringVar(&scopeFilter, "scope", "all", "Processing scope (all, content, master)")
 
 	// Add --theme flag to rename command
 	colorRenameCmd.Flags().StringSliceVar(&renameThemeFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
@@ -180,7 +189,7 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 		cmd.Println("Themes: all")
 	}
 
-	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter)
+	filesProcessed, err := ProcessPPTX(inputFile, outputFile, colorMapping, themeFilter, scopeFilter)
 	if err != nil {
 		cmd.PrintErrf("\nError: %v\n", err)
 		return fmt.Errorf("") // Return empty error to set exit code

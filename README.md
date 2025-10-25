@@ -125,6 +125,29 @@ pptx-toolkit color swap "accent1:BBFFCC,000000:accent2" input.pptx output.pptx -
 pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --theme theme1,theme2
 ```
 
+### Scope filtering
+
+Control whether color swaps apply to user content, master infrastructure, or both:
+
+```bash
+# Process everything (default behavior)
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+
+# Fix user overrides in content only (slides, charts, diagrams, notes)
+pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx --scope content
+
+# Update master template only (slideMasters, slideLayouts, notesMasters, handoutMasters)
+pptx-toolkit color swap "accent1:accent5" input.pptx output.pptx --scope master
+
+# Combine scope and theme filtering
+pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content --theme theme1
+```
+
+**Scope options:**
+- `all` - Process all files (default)
+- `content` - Process user content only (slides, charts, diagrams, notes)
+- `master` - Process master infrastructure only (slideMasters, slideLayouts, notesMasters, handoutMasters)
+
 ### Valid color formats
 
 **Scheme colors** (PowerPoint theme colors):
