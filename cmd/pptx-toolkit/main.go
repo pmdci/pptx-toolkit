@@ -10,7 +10,7 @@ import (
 // Version is set via ldflags during build
 var Version = "dev"
 
-const versionBanner = `pptx-toolkit %s
+const versionBanner = `pptx-toolkit version %s
 
 ╭━━━┳━━━┳━━━━┳━╮╭━╮╭━━━━╮╱╱╱╱╭╮╭╮╱╱╭╮
 ┃╭━╮┃╭━╮┃╭╮╭╮┣╮╰╯╭╯┃╭╮╭╮┃╱╱╱╱┃┃┃┃╱╭╯╰╮ Copyright (C) 2025 Pedro Innecco
