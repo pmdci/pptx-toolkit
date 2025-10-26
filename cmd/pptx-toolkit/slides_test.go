@@ -157,9 +157,9 @@ func TestBuildSlideMapping(t *testing.T) {
 		t.Fatalf("BuildSlideMapping() error = %v", err)
 	}
 
-	// Verify we have 12 slides (from research doc)
-	if len(mapping) != 12 {
-		t.Errorf("Expected 12 slides, got %d", len(mapping))
+	// Verify we have 13 slides (from research doc)
+	if len(mapping) != 13 {
+		t.Errorf("Expected 13 slides, got %d", len(mapping))
 	}
 
 	// Verify slide 1 maps to a path in ppt/slides/
@@ -172,8 +172,8 @@ func TestBuildSlideMapping(t *testing.T) {
 		t.Errorf("Slide 1 path doesn't have expected prefix: %s", slide1Path)
 	}
 
-	// Verify all slide numbers are sequential (1-12)
-	for i := 1; i <= 12; i++ {
+	// Verify all slide numbers are sequential (1-3)
+	for i := 1; i <= 13; i++ {
 		if _, exists := mapping[i]; !exists {
 			t.Errorf("Slide %d not found in mapping", i)
 		}
@@ -245,7 +245,7 @@ func TestValidateSlideNumbers(t *testing.T) {
 		},
 		{
 			name:    "all slides valid",
-			slides:  []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+			slides:  []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
 			wantErr: false,
 		},
 		{

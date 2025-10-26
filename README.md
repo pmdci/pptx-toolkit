@@ -110,6 +110,25 @@ pptx-toolkit color swap "accent1:BBFFCC,000000:accent2,FF0000:00FF00" input.pptx
 - `accent1` becomes `accent3` (NOT `accent4`)
 - `accent3` becomes `accent4`
 
+#### Tint/shade handling
+
+PowerPoint theme colors support tint and shade variants (lighter/darker versions). When swapping colors:
+
+- **Scheme → Scheme**: Tint/shade modifiers are **preserved**
+  ```bash
+  # accent1 (80% lighter) becomes accent3 (80% lighter)
+  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+  ```
+
+- **Scheme → Hex**: Tint/shade modifiers are **stripped** (converted to base hex color)
+  ```bash
+  # accent1 (80% lighter) becomes FF00FF (base color, no tint)
+  # accent1 (40% darker) also becomes FF00FF (base color, no tint)
+  pptx-toolkit color swap "accent1:FF00FF" input.pptx output.pptx
+  ```
+
+This is semantically correct: literal RGB hex values don't support tint/shade variations. All theme color variants (base, lighter, darker) are replaced with the same hex color.
+
 ### Filter by theme
 
 Only process specific themes when a PowerPoint file contains multiple themes. Works with both scheme and hex color mappings:

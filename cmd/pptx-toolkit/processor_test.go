@@ -584,3 +584,184 @@ func TestReplaceSrgbColors_NoMatches(t *testing.T) {
 		}
 	}
 }
+
+func TestReplaceSchemeColorsWithSrgb_WithTintModifiers(t *testing.T) {
+	t.Run("scheme to hex with tint modifiers - strips children", func(t *testing.T) {
+		// Create XML with tint/shade modifiers (container elements with children)
+		xml := []byte(`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<p:sld xmlns:p="` + presentationmlNS + `" xmlns:a="` + drawingmlNS + `">` +
+			`<a:solidFill>` +
+			`<a:schemeClr val="accent1">` +
+			`<a:lumMod val="20000"/>` +
+			`<a:lumOff val="80000"/>` +
+			`</a:schemeClr>` +
+			`</a:solidFill>` +
+			`</p:sld>`)
+
+		mapping := map[string]string{"accent1": "FF00FF"}
+
+		result, err := ReplaceSchemeColorsWithSrgb(xml, mapping)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify conversion to srgbClr
+		rgbColors, err := extractSrgbColors(result)
+		if err != nil {
+			t.Fatalf("failed to extract srgb colors: %v", err)
+		}
+
+		if len(rgbColors) != 1 || rgbColors[0] != "FF00FF" {
+			t.Errorf("expected [FF00FF], got %v", rgbColors)
+		}
+
+		// Verify no schemeClr elements remain for accent1
+		schemeColors, _ := extractSchemeColors(result)
+		if len(schemeColors) != 0 {
+			t.Errorf("expected no schemeClr elements, but found %d: %v", len(schemeColors), schemeColors)
+		}
+
+		// Verify XML structure is valid (no mismatched tags)
+		doc, err := xmlquery.Parse(bytes.NewReader(result))
+		if err != nil {
+			t.Fatalf("result should be valid XML: %v", err)
+		}
+
+		// Verify the element is self-closing (no children)
+		srgbNode := xmlquery.FindOne(doc, "//*[local-name()='srgbClr']")
+		if srgbNode == nil {
+			t.Fatal("srgbClr element not found")
+		}
+
+		// Check that srgbClr has no children (modifiers should be stripped)
+		if srgbNode.FirstChild != nil {
+			t.Errorf("srgbClr should have no children, but has: %v", srgbNode.FirstChild)
+		}
+	})
+
+	t.Run("scheme to hex with multiple tint variants", func(t *testing.T) {
+		// Simulate multiple tint variants of the same color (like PowerPoint's color picker)
+		xml := []byte(`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<p:sld xmlns:p="` + presentationmlNS + `" xmlns:a="` + drawingmlNS + `">` +
+			`<a:sp><a:solidFill><a:schemeClr val="accent1"/></a:solidFill></a:sp>` + // BASE
+			`<a:sp><a:solidFill><a:schemeClr val="accent1"><a:lumMod val="20000"/><a:lumOff val="80000"/></a:schemeClr></a:solidFill></a:sp>` + // L80
+			`<a:sp><a:solidFill><a:schemeClr val="accent1"><a:lumMod val="40000"/><a:lumOff val="60000"/></a:schemeClr></a:solidFill></a:sp>` + // L60
+			`<a:sp><a:solidFill><a:schemeClr val="accent1"><a:lumMod val="75000"/></a:schemeClr></a:solidFill></a:sp>` + // D25
+			`</p:sld>`)
+
+		mapping := map[string]string{"accent1": "FF00FF"}
+
+		result, err := ReplaceSchemeColorsWithSrgb(xml, mapping)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// All 4 variants should become srgbClr with FF00FF (tints stripped)
+		rgbColors, err := extractSrgbColors(result)
+		if err != nil {
+			t.Fatalf("failed to extract srgb colors: %v", err)
+		}
+
+		expected := []string{"FF00FF", "FF00FF", "FF00FF", "FF00FF"}
+		if len(rgbColors) != len(expected) {
+			t.Fatalf("expected %d rgb colors, got %d", len(expected), len(rgbColors))
+		}
+		for i, exp := range expected {
+			if rgbColors[i] != exp {
+				t.Errorf("color %d: expected %s, got %s", i, exp, rgbColors[i])
+			}
+		}
+
+		// Verify XML is valid
+		doc, err := xmlquery.Parse(bytes.NewReader(result))
+		if err != nil {
+			t.Fatalf("result should be valid XML: %v", err)
+		}
+
+		// Verify all srgbClr elements have no children
+		srgbNodes, _ := xmlquery.QueryAll(doc, "//*[local-name()='srgbClr']")
+		for i, node := range srgbNodes {
+			if node.FirstChild != nil {
+				t.Errorf("srgbClr element %d should have no children", i)
+			}
+		}
+	})
+
+	t.Run("scheme to hex preserves self-closing tags", func(t *testing.T) {
+		// Self-closing tags (no tint modifiers) should still work
+		xml := createSampleXML([]string{"accent1", "accent2"})
+		mapping := map[string]string{"accent1": "BBFFCC"}
+
+		result, err := ReplaceSchemeColorsWithSrgb(xml, mapping)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// accent1 should become srgbClr
+		rgbColors, err := extractSrgbColors(result)
+		if err != nil {
+			t.Fatalf("failed to extract srgb colors: %v", err)
+		}
+
+		if len(rgbColors) != 1 || rgbColors[0] != "BBFFCC" {
+			t.Errorf("expected [BBFFCC], got %v", rgbColors)
+		}
+
+		// accent2 should remain schemeClr
+		schemeColors, _ := extractSchemeColors(result)
+		if len(schemeColors) != 1 || schemeColors[0] != "accent2" {
+			t.Errorf("expected [accent2], got %v", schemeColors)
+		}
+	})
+
+	t.Run("scheme to scheme preserves tint modifiers", func(t *testing.T) {
+		// When converting scheme→scheme, tint modifiers should be preserved
+		xml := []byte(`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<p:sld xmlns:p="` + presentationmlNS + `" xmlns:a="` + drawingmlNS + `">` +
+			`<a:solidFill>` +
+			`<a:schemeClr val="accent1">` +
+			`<a:lumMod val="75000"/>` +
+			`</a:schemeClr>` +
+			`</a:solidFill>` +
+			`</p:sld>`)
+
+		mapping := map[string]string{"accent1": "accent3"}
+
+		result, err := ReplaceSchemeColorsWithSrgb(xml, mapping)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Should still be schemeClr (not srgbClr)
+		schemeColors, err := extractSchemeColors(result)
+		if err != nil {
+			t.Fatalf("failed to extract scheme colors: %v", err)
+		}
+
+		if len(schemeColors) != 1 || schemeColors[0] != "accent3" {
+			t.Errorf("expected [accent3], got %v", schemeColors)
+		}
+
+		// Verify lumMod modifier is preserved
+		if !bytes.Contains(result, []byte("lumMod")) {
+			t.Error("expected lumMod modifier to be preserved for scheme→scheme conversion")
+		}
+
+		// Verify XML structure is valid
+		doc, err := xmlquery.Parse(bytes.NewReader(result))
+		if err != nil {
+			t.Fatalf("result should be valid XML: %v", err)
+		}
+
+		// Verify the schemeClr element has children (modifiers preserved)
+		schemeNode := xmlquery.FindOne(doc, "//*[local-name()='schemeClr']")
+		if schemeNode == nil {
+			t.Fatal("schemeClr element not found")
+		}
+
+		lumModNode := xmlquery.FindOne(schemeNode, "//*[local-name()='lumMod']")
+		if lumModNode == nil {
+			t.Error("lumMod child element should be preserved for scheme→scheme conversion")
+		}
+	})
+}

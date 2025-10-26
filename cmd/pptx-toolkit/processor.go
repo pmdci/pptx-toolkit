@@ -162,6 +162,11 @@ func ReplaceSrgbColors(xmlContent []byte, colorMapping map[string]string) ([]byt
 // It finds all <schemeClr val="accent1"/> elements and replaces them with
 // <srgbClr val="AABBCC"/> when the mapping specifies a hex target.
 //
+// For scheme→hex conversions with tint/shade modifiers (child elements),
+// it strips the modifiers and creates a self-closing srgbClr element.
+//
+// For scheme→scheme conversions, it preserves tint/shade modifiers.
+//
 // Replacement is atomic (no cascading).
 //
 // Returns the modified XML bytes, or the original if no replacements are needed.
@@ -184,51 +189,78 @@ func ReplaceSchemeColorsWithSrgb(xmlContent []byte, colorMapping map[string]stri
 		}
 	}
 
-	// Pattern matches: <prefix:schemeClr val="accent1" with any namespace prefix
-	pattern := regexp.MustCompile(`(<[^:>]*:?schemeClr[^>]*\sval=")([^"]+)(")`)
+	// If no scheme→hex conversions, use fast regex path for scheme→scheme
+	if len(schemeToHexMapping) == 0 {
+		return ReplaceSchemeColors(xmlContent, schemeToSchemeMapping)
+	}
 
-	// Atomic replacement: capture all matches first, then replace
+	// Pattern matches entire schemeClr element including children and closing tag
+	// Matches both self-closing and container variants:
+	//   <a:schemeClr val="accent1"/>  (self-closing)
+	//   <a:schemeClr val="accent1">...</a:schemeClr>  (container)
+	// Two alternatives: self-closing OR container with closing tag
+	pattern := regexp.MustCompile(`(<[^:>]*:?)(schemeClr)(\s+val=")([^"]+)("(?:[^>]*?))(/>)|(<[^:>]*:?)(schemeClr)(\s+val=")([^"]+)("(?:[^>]*?))(>)([\s\S]*?</[^:>]*:?schemeClr>)`)
+
+	// Atomic replacement: capture all matches first
 	matches := pattern.FindAllSubmatchIndex(xmlContent, -1)
 	if len(matches) == 0 {
 		return xmlContent, nil
 	}
 
-	// Build new content by copying unchanged parts and replacing matches
 	var result bytes.Buffer
 	lastEnd := 0
 
 	for _, match := range matches {
-		// match[0], match[1] = full match start, end
-		// match[4], match[5] = color value start, end (capture group 2)
+		// Pattern has two alternatives:
+		// Alternative 1 (self-closing): groups [2-13]
+		// Alternative 2 (container): groups [14-27]
 
 		// Write everything before this match
 		result.Write(xmlContent[lastEnd:match[0]])
 
-		// Get current scheme color
-		currentColor := string(xmlContent[match[4]:match[5]])
+		// Determine which alternative matched
+		var prefix, valOpening, colorValue, closing, restOfElement []byte
+		var currentColor string
+		var isSelfClosing bool
+
+		if match[2] != -1 {
+			// Self-closing variant matched
+			isSelfClosing = true
+			prefix = xmlContent[match[2]:match[3]]           // "<a:"
+			valOpening = xmlContent[match[6]:match[7]]       // ' val="'
+			colorValue = xmlContent[match[8]:match[9]]       // "accent1"
+			currentColor = string(colorValue)
+			closing = xmlContent[match[10]:match[13]]        // '"/>'
+			restOfElement = nil
+		} else {
+			// Container variant matched
+			isSelfClosing = false
+			prefix = xmlContent[match[14]:match[15]]          // "<a:"
+			valOpening = xmlContent[match[18]:match[19]]      // ' val="'
+			colorValue = xmlContent[match[20]:match[21]]      // "accent1"
+			currentColor = string(colorValue)
+			closing = xmlContent[match[22]:match[25]]         // '">...'
+			restOfElement = xmlContent[match[26]:match[27]]   // children + closing tag
+		}
 
 		// Check for scheme → hex conversion
 		if hexColor, exists := schemeToHexMapping[currentColor]; exists {
-			// Scheme → HEX: replace entire element
-			// Extract namespace prefix from opening tag
-			opening := string(xmlContent[match[2]:match[3]])
-			prefixEnd := strings.Index(opening, "schemeClr")
-			prefix := ""
-			if prefixEnd > 0 {
-				prefix = opening[1:prefixEnd] // Extract prefix including ':'
-			}
-
-			// Write replacement as srgbClr
-			result.WriteString("<")
-			result.WriteString(prefix)
-			result.WriteString("srgbClr val=\"")
-			result.WriteString(hexColor)
-			result.WriteString("\"")
+			// Scheme → HEX: replace entire element with self-closing srgbClr
+			result.Write(prefix)                  // "<a:"
+			result.WriteString("srgbClr")         // new element name
+			result.WriteString(" val=\"")         // ' val="'
+			result.WriteString(hexColor)          // hex value
+			result.WriteString("\"/>")            // close self-closing tag
 		} else if newScheme, exists := schemeToSchemeMapping[currentColor]; exists {
-			// Scheme → Scheme: just replace the value
-			result.Write(xmlContent[match[2]:match[3]]) // opening
-			result.WriteString(newScheme)
-			result.Write(xmlContent[match[6]:match[7]]) // closing
+			// Scheme → Scheme: preserve structure, just change val
+			result.Write(prefix)                  // "<a:"
+			result.WriteString("schemeClr")       // keep element name
+			result.Write(valOpening)              // ' val="'
+			result.WriteString(newScheme)         // new scheme color
+			result.Write(closing)                 // '"/>' or '">'
+			if !isSelfClosing {
+				result.Write(restOfElement)       // children + closing tag
+			}
 		} else {
 			// No mapping, write original
 			result.Write(xmlContent[match[0]:match[1]])
