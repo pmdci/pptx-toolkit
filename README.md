@@ -1,5 +1,7 @@
 # PPTX-Toolkit
 
+![PPTX-Toolkit Banner](assets/pptx-toolkit_social.png)
+
 A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap color references (scheme colors and hex RGB values) in slides without modifying theme definitions.
 
 ## What it does
@@ -115,6 +117,7 @@ pptx-toolkit color swap "accent1:BBFFCC,000000:accent2,FF0000:00FF00" input.pptx
 PowerPoint theme colors support tint and shade variants (lighter/darker versions). When swapping colors:
 
 - **Scheme → Scheme**: Tint/shade modifiers are **preserved**
+
   ```bash
   # accent1 (80% lighter) becomes accent3 (80% lighter)
   pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
@@ -163,6 +166,7 @@ pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content
 ```
 
 **Scope options:**
+
 - `all` - Process all files (default)
 - `content` - Process user content only (slides, charts, diagrams, notes)
 - `master` - Process master infrastructure only (slideMasters, slideLayouts, notesMasters, handoutMasters)
@@ -188,6 +192,7 @@ pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --
 **Important:** `--slides` can only be used with `--scope content`.
 
 **What gets processed:**
+
 - Specified slide files
 - Charts embedded in those slides (including colors.xml, style.xml)
 - Diagrams/SmartArt in those slides (all 5 files: data, layout, colors, quickStyle, drawing)
