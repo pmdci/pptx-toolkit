@@ -29,10 +29,11 @@ dist/
 *~
 
 # Internal AI-related stuff (but keep .llm/ docs!)
-.claude/
 AGENTS.md
-.llm/
 CLAUDE.md
+.claude/
+.claude-octopus/
+.llm/
 
 # OS generated files
 .DS_Store
