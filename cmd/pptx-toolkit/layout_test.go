@@ -83,6 +83,137 @@ func TestParseLayoutXML(t *testing.T) {
 	}
 }
 
+func TestRemoveMatchingNameAttr(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantAbsent  string
+		wantPresent string
+	}{
+		{
+			name: "removes double-quoted attribute",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" matchingName="Foo" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			wantAbsent:  `matchingName=`,
+			wantPresent: `preserve="1"`,
+		},
+		{
+			name: "removes single-quoted attribute",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" matchingName='Foo' preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			wantAbsent:  `matchingName=`,
+			wantPresent: `preserve="1"`,
+		},
+		{
+			name: "no-op when attribute absent",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			wantAbsent:  `matchingName=`,
+			wantPresent: `preserve="1"`,
+		},
+		{
+			name: "xml declaration does not fool the scanner",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" matchingName="A&gt;B" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			wantAbsent:  `matchingName=`,
+			wantPresent: `preserve="1"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := removeMatchingNameAttr([]byte(tt.input))
+			if err != nil {
+				t.Fatalf("removeMatchingNameAttr returned error: %v", err)
+			}
+			if tt.wantAbsent != "" && bytes.Contains(got, []byte(tt.wantAbsent)) {
+				t.Errorf("expected %q to be absent, got:\n%s", tt.wantAbsent, got)
+			}
+			if tt.wantPresent != "" && !bytes.Contains(got, []byte(tt.wantPresent)) {
+				t.Errorf("expected %q to be present, got:\n%s", tt.wantPresent, got)
+			}
+		})
+	}
+}
+
+func TestRemoveLayoutMatchingName(t *testing.T) {
+	skipIfNoFixture(t)
+
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	count, err := RemoveLayoutMatchingName(testPPTX, outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("RemoveLayoutMatchingName failed: %v", err)
+	}
+	if count == 0 {
+		t.Skip("test.pptx has no layouts with matchingName — skipping removal check")
+	}
+
+	layouts, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	for _, l := range layouts {
+		if l.MatchingName != "" {
+			t.Errorf("layout %s still has matchingName=%q after removal", l.FileName, l.MatchingName)
+		}
+	}
+}
+
+func TestRemoveLayoutMatchingName_FilteredRemoval(t *testing.T) {
+	skipIfNoFixture(t)
+
+	// Determine which layouts have matchingName set
+	all, err := ReadLayouts(testPPTX, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts failed: %v", err)
+	}
+	var candidates []*LayoutInfo
+	for _, l := range all {
+		if l.MatchingName != "" {
+			candidates = append(candidates, l)
+		}
+	}
+	if len(candidates) == 0 {
+		t.Skip("test.pptx has no layouts with matchingName")
+	}
+
+	target := candidates[0]
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	count, err := RemoveLayoutMatchingName(testPPTX, outFile, LayoutFilters{LayoutID: target.LayoutID})
+	if err != nil {
+		t.Fatalf("RemoveLayoutMatchingName failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 layout modified, got %d", count)
+	}
+
+	result, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	for _, l := range result {
+		if l.LayoutID == target.LayoutID && l.MatchingName != "" {
+			t.Errorf("target layout %s still has matchingName=%q", l.LayoutID, l.MatchingName)
+		}
+		if l.LayoutID != target.LayoutID && l.MatchingName == "" {
+			// Only flag if the original had a matchingName (i.e., it was cleared unexpectedly)
+			for _, orig := range all {
+				if orig.LayoutID == l.LayoutID && orig.MatchingName != "" {
+					t.Errorf("non-target layout %s had matchingName cleared unexpectedly", l.LayoutID)
+				}
+			}
+		}
+	}
+}
+
 // --- layoutNumber ---
 
 func TestLayoutNumber(t *testing.T) {
@@ -347,6 +478,120 @@ func TestReadLayouts_UsedBySlides(t *testing.T) {
 	}
 }
 
+func TestLayoutListCommand_DoesNotLeakFiltersBetweenExecutions(t *testing.T) {
+	skipIfNoFixture(t)
+
+	origLayoutIDFilter := layoutIDFilter
+	origLayoutNameFilter := layoutNameFilter
+	origLayoutMatchFilter := layoutMatchFilter
+	origLayoutThemeFilter := append([]string(nil), layoutThemeFilter...)
+	defer func() {
+		layoutIDFilter = origLayoutIDFilter
+		layoutNameFilter = origLayoutNameFilter
+		layoutMatchFilter = origLayoutMatchFilter
+		layoutThemeFilter = origLayoutThemeFilter
+		_ = layoutListCmd.Flags().Set("layout-id", origLayoutIDFilter)
+		_ = layoutListCmd.Flags().Set("name", origLayoutNameFilter)
+		_ = layoutListCmd.Flags().Set("matching-name", origLayoutMatchFilter)
+		_ = layoutListCmd.Flags().Set("theme", strings.Join(origLayoutThemeFilter, ","))
+	}()
+
+	var firstOut bytes.Buffer
+	var firstErr bytes.Buffer
+	rootCmd.SetOut(&firstOut)
+	rootCmd.SetErr(&firstErr)
+	rootCmd.SetArgs([]string{"layout", "list", "--layout-id", "slideLayout12", testPPTX})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("first execution failed: %v; stderr=%s", err, firstErr.String())
+	}
+
+	if !strings.Contains(firstOut.String(), "slideLayout12.xml") {
+		t.Fatalf("expected filtered output to include slideLayout12.xml, got:\n%s", firstOut.String())
+	}
+
+	var secondOut bytes.Buffer
+	var secondErr bytes.Buffer
+	rootCmd.SetOut(&secondOut)
+	rootCmd.SetErr(&secondErr)
+	rootCmd.SetArgs([]string{"layout", "list", testPPTX})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("second execution failed: %v; stderr=%s", err, secondErr.String())
+	}
+
+	if strings.Contains(secondOut.String(), "Found 1 layout(s)") {
+		t.Fatalf("expected unfiltered output on second execution, got:\n%s", secondOut.String())
+	}
+}
+
+func TestLayoutRemoveCommand_DoesNotLeakFiltersBetweenExecutions(t *testing.T) {
+	skipIfNoFixture(t)
+
+	outDir := t.TempDir()
+	firstOutput := filepath.Join(outDir, "filtered-out.pptx")
+	secondOutput := filepath.Join(outDir, "unfiltered-out.pptx")
+
+	originalLayouts, err := ReadLayouts(testPPTX, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on fixture failed: %v", err)
+	}
+	originalWithMatchingName := 0
+	for _, l := range originalLayouts {
+		if l.MatchingName != "" {
+			originalWithMatchingName++
+		}
+	}
+	if originalWithMatchingName == 0 {
+		t.Skip("test.pptx has no layouts with matchingName")
+	}
+
+	var firstOut bytes.Buffer
+	var firstErr bytes.Buffer
+	rootCmd.SetOut(&firstOut)
+	rootCmd.SetErr(&firstErr)
+	rootCmd.SetArgs([]string{"layout", "remove", "matching-name", "--layout-id", "slideLayout12", testPPTX, firstOutput})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("first remove execution failed: %v; stderr=%s", err, firstErr.String())
+	}
+
+	firstLayouts, err := ReadLayouts(firstOutput, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on first output failed: %v", err)
+	}
+
+	firstRemaining := 0
+	for _, l := range firstLayouts {
+		if l.MatchingName != "" {
+			firstRemaining++
+		}
+	}
+	if firstRemaining != originalWithMatchingName-1 {
+		t.Fatalf("expected first execution to remove exactly one matching-name; before=%d after=%d", originalWithMatchingName, firstRemaining)
+	}
+
+	var secondOut bytes.Buffer
+	var secondErr bytes.Buffer
+	rootCmd.SetOut(&secondOut)
+	rootCmd.SetErr(&secondErr)
+	rootCmd.SetArgs([]string{"layout", "remove", "matching-name", testPPTX, secondOutput})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("second remove execution failed: %v; stderr=%s", err, secondErr.String())
+	}
+
+	secondLayouts, err := ReadLayouts(secondOutput, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on second output failed: %v", err)
+	}
+	for _, l := range secondLayouts {
+		if l.MatchingName != "" {
+			t.Fatalf("expected second execution to be unfiltered; layout %s still has matchingName=%q", l.LayoutID, l.MatchingName)
+		}
+	}
+}
+
 // --- buildSlideToLayoutMapping ---
 
 func TestBuildSlideToLayoutMapping(t *testing.T) {
@@ -405,52 +650,5 @@ func TestExtractPPTX_InvalidFile(t *testing.T) {
 	err := extractPPTX("nonexistent.pptx", destDir)
 	if err == nil {
 		t.Error("expected error for nonexistent file, got nil")
-	}
-}
-
-func TestLayoutListCommand_DoesNotLeakFiltersBetweenExecutions(t *testing.T) {
-	skipIfNoFixture(t)
-
-	origLayoutIDFilter := layoutIDFilter
-	origLayoutNameFilter := layoutNameFilter
-	origLayoutMatchFilter := layoutMatchFilter
-	origLayoutThemeFilter := append([]string(nil), layoutThemeFilter...)
-	defer func() {
-		layoutIDFilter = origLayoutIDFilter
-		layoutNameFilter = origLayoutNameFilter
-		layoutMatchFilter = origLayoutMatchFilter
-		layoutThemeFilter = origLayoutThemeFilter
-		_ = layoutListCmd.Flags().Set("layout-id", origLayoutIDFilter)
-		_ = layoutListCmd.Flags().Set("name", origLayoutNameFilter)
-		_ = layoutListCmd.Flags().Set("matching-name", origLayoutMatchFilter)
-		_ = layoutListCmd.Flags().Set("theme", strings.Join(origLayoutThemeFilter, ","))
-	}()
-
-	var firstOut bytes.Buffer
-	var firstErr bytes.Buffer
-	rootCmd.SetOut(&firstOut)
-	rootCmd.SetErr(&firstErr)
-	rootCmd.SetArgs([]string{"layout", "list", "--layout-id", "slideLayout12", testPPTX})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("first execution failed: %v; stderr=%s", err, firstErr.String())
-	}
-
-	if !strings.Contains(firstOut.String(), "slideLayout12.xml") {
-		t.Fatalf("expected filtered output to include slideLayout12.xml, got:\n%s", firstOut.String())
-	}
-
-	var secondOut bytes.Buffer
-	var secondErr bytes.Buffer
-	rootCmd.SetOut(&secondOut)
-	rootCmd.SetErr(&secondErr)
-	rootCmd.SetArgs([]string{"layout", "list", testPPTX})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("second execution failed: %v; stderr=%s", err, secondErr.String())
-	}
-
-	if strings.Contains(secondOut.String(), "Found 1 layout(s)") {
-		t.Fatalf("expected unfiltered output on second execution, got:\n%s", secondOut.String())
 	}
 }

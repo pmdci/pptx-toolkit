@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
@@ -167,6 +169,85 @@ func parseLayoutXML(filePath string) (name, matchingName string, err error) {
 	}
 
 	return name, matchingName, nil
+}
+
+var matchingNameRe = regexp.MustCompile(`\s+matchingName\s*=\s*(?:"[^"]*"|'[^']*')`)
+
+// removeMatchingNameAttr removes the matchingName attribute from the sldLayout
+// start tag using the Decoder.InputOffset approach: parse only to locate the
+// exact byte range of the start tag, then apply a regex to that slice only.
+// The rest of the file is byte-identical to the input.
+func removeMatchingNameAttr(content []byte) ([]byte, error) {
+	d := xml.NewDecoder(bytes.NewReader(content))
+	for {
+		preOffset := d.InputOffset()
+		tok, err := d.Token()
+		if err == io.EOF {
+			return content, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parsing layout XML: %w", err)
+		}
+		se, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if se.Name.Local == "sldLayout" &&
+			se.Name.Space == "http://schemas.openxmlformats.org/presentationml/2006/main" {
+			postOffset := d.InputOffset()
+			startTag := matchingNameRe.ReplaceAll(content[preOffset:postOffset], nil)
+			out := make([]byte, 0, len(content))
+			out = append(out, content[:preOffset]...)
+			out = append(out, startTag...)
+			out = append(out, content[postOffset:]...)
+			return out, nil
+		}
+	}
+}
+
+// RemoveLayoutMatchingName removes the matchingName attribute from layouts
+// matching the given filters. Writes the modified PPTX to outputPath even
+// when no layouts are changed. Returns the number of layouts modified.
+func RemoveLayoutMatchingName(inputPath, outputPath string, filters LayoutFilters) (int, error) {
+	tempDir, err := os.MkdirTemp("", "pptx-toolkit-*")
+	if err != nil {
+		return 0, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	if err := extractPPTX(inputPath, tempDir); err != nil {
+		return 0, err
+	}
+
+	layouts, err := readLayoutsFromDir(tempDir, filters)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, l := range layouts {
+		if l.MatchingName == "" {
+			continue
+		}
+		filePath := filepath.Join(tempDir, "ppt", "slideLayouts", l.FileName)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read %s: %w", l.FileName, err)
+		}
+		modified, err := removeMatchingNameAttr(content)
+		if err != nil {
+			return 0, fmt.Errorf("failed to process %s: %w", l.FileName, err)
+		}
+		if err := os.WriteFile(filePath, modified, 0644); err != nil {
+			return 0, fmt.Errorf("failed to write %s: %w", l.FileName, err)
+		}
+		count++
+	}
+
+	if err := repackPPTX(tempDir, outputPath); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // buildSlideToLayoutMapping returns a map of layout filename → sorted visual slide numbers.

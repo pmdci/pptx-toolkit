@@ -134,6 +134,23 @@ pptx-toolkit layout list presentation.pptx --matching-name "Contacto + soher"
 pptx-toolkit layout list presentation.pptx --theme theme1
 ```
 
+### Remove matching name from layouts
+
+Remove the `matchingName` attribute (`p:sldLayout/@matchingName`) from slide layouts. Useful when importing from Google Slides or other tools that set this field and you want PowerPoint to fall back to using the standard **Name** field everywhere.
+
+```bash
+# Remove from all layouts
+pptx-toolkit layout remove matching-name input.pptx output.pptx
+
+# Remove from a specific layout
+pptx-toolkit layout remove matching-name input.pptx output.pptx --layout-id slideLayout12
+
+# Remove from layouts with a specific matching name
+pptx-toolkit layout remove matching-name input.pptx output.pptx --matching-name "Contacto + soher"
+```
+
+Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filters as `layout list`.
+
 ### Swap color references
 
 Replace color references throughout the presentation. Supports both scheme colors (e.g., `accent1`) and hex RGB values (e.g., `AABBCC`).
