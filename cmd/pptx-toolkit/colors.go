@@ -38,25 +38,25 @@ Slide filtering:
 
 Examples:
   # Scheme to scheme
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+  pptx-toolkit color swap accent1:accent3 input.pptx output.pptx
 
   # Scheme to hex
-  pptx-toolkit color swap "accent1:BBFFCC" input.pptx output.pptx
+  pptx-toolkit color swap accent1:BBFFCC input.pptx output.pptx
 
   # Fix user overrides in content only
-  pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx --scope content
+  pptx-toolkit color swap AABBCC:accent2 input.pptx output.pptx --scope content
 
   # Update master template only
-  pptx-toolkit color swap "accent1:accent5" input.pptx output.pptx --scope master
+  pptx-toolkit color swap accent1:accent5 input.pptx output.pptx --scope master
 
   # Process specific slides (auto-sets scope to content)
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3,5
+  pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1,3,5
 
   # Process slide range
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 5-8
+  pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 5-8
 
   # Combine slides with theme filtering
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --theme theme1
+  pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1-5 --theme theme1
 
   # Multiple mappings
   pptx-toolkit color swap "accent1:BBFFCC,AABBCC:accent2,FF0000:00FF00" input.pptx output.pptx`,

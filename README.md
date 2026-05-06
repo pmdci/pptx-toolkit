@@ -89,16 +89,16 @@ Replace color references throughout the presentation. Supports both scheme color
 
 ```bash
 # Scheme to scheme
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx
 
 # Scheme to hex
-pptx-toolkit color swap "accent1:BBFFCC" input.pptx output.pptx
+pptx-toolkit color swap accent1:BBFFCC input.pptx output.pptx
 
 # Hex to scheme
-pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx
+pptx-toolkit color swap AABBCC:accent2 input.pptx output.pptx
 
 # Hex to hex
-pptx-toolkit color swap "FF0000:00FF00" input.pptx output.pptx
+pptx-toolkit color swap FF0000:00FF00 input.pptx output.pptx
 
 # Many-to-one mapping (atomic)
 pptx-toolkit color swap "accent1:accent3,accent5:accent3" input.pptx output.pptx
@@ -106,6 +106,8 @@ pptx-toolkit color swap "accent1:accent3,accent5:accent3" input.pptx output.pptx
 # Mixed mappings (scheme + hex)
 pptx-toolkit color swap "accent1:BBFFCC,000000:accent2,FF0000:00FF00" input.pptx output.pptx
 ```
+
+Quotes are optional for simple mappings without spaces, but recommended when the mapping contains spaces or multiple comma-separated entries.
 
 **Important:** Replacements are **atomic**, not cascading. In the example above:
 
@@ -120,14 +122,14 @@ PowerPoint theme colors support tint and shade variants (lighter/darker versions
 
   ```bash
   # accent1 (80% lighter) becomes accent3 (80% lighter)
-  pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+  pptx-toolkit color swap accent1:accent3 input.pptx output.pptx
   ```
 
 - **Scheme → Hex**: Tint/shade modifiers are **stripped** (converted to base hex color)
   ```bash
   # accent1 (80% lighter) becomes FF00FF (base color, no tint)
   # accent1 (40% darker) also becomes FF00FF (base color, no tint)
-  pptx-toolkit color swap "accent1:FF00FF" input.pptx output.pptx
+  pptx-toolkit color swap accent1:FF00FF input.pptx output.pptx
   ```
 
 This is semantically correct: literal RGB hex values don't support tint/shade variations. All theme color variants (base, lighter, darker) are replaced with the same hex color.
@@ -138,13 +140,13 @@ Only process specific themes when a PowerPoint file contains multiple themes. Wo
 
 ```bash
 # Process only theme1
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --theme theme1
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --theme theme1
 
 # Filter by theme with hex colors
 pptx-toolkit color swap "accent1:BBFFCC,000000:accent2" input.pptx output.pptx --theme theme1
 
 # Process multiple themes
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --theme theme1,theme2
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --theme theme1,theme2
 ```
 
 ### Scope filtering
@@ -153,16 +155,16 @@ Control whether color swaps apply to user content, master infrastructure, or bot
 
 ```bash
 # Process everything (default behavior)
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx
 
 # Fix user overrides in content only (slides, charts, diagrams, notes)
-pptx-toolkit color swap "AABBCC:accent2" input.pptx output.pptx --scope content
+pptx-toolkit color swap AABBCC:accent2 input.pptx output.pptx --scope content
 
 # Update master template only (slideMasters, slideLayouts, notesMasters, handoutMasters)
-pptx-toolkit color swap "accent1:accent5" input.pptx output.pptx --scope master
+pptx-toolkit color swap accent1:accent5 input.pptx output.pptx --scope master
 
 # Combine scope and theme filtering
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --scope content --theme theme1
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --scope content --theme theme1
 ```
 
 **Scope options:**
@@ -177,16 +179,16 @@ Target specific slides for color swaps. Automatically includes embedded content 
 
 ```bash
 # Process specific slides
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1,3
 
 # Process slide range
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 5-8
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 5-8
 
 # Combine ranges and individual slides
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1,3,5-8,10
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1,3,5-8,10
 
 # Combine with theme filtering
-pptx-toolkit color swap "accent1:accent3" input.pptx output.pptx --slides 1-5 --theme theme1
+pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1-5 --theme theme1
 ```
 
 **Important:** `--slides` can only be used with `--scope content`.
