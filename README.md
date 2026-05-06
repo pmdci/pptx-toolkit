@@ -6,12 +6,12 @@ A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap 
 
 ## What it does
 
-pptx-toolkit reads PowerPoint files and manipulates color references throughout slides, layouts, and masters. You can swap between:
+pptx-toolkit reads PowerPoint files and manipulates color references and layout metadata throughout slides, layouts, and masters. You can:
 
-- **Scheme colors** (like `accent1`, `accent5`)
-- **Hex RGB values** (like `AABBCC`, `FF0000`)
+- Swap between **scheme colors** (like `accent1`, `accent5`) and **hex RGB values** (like `AABBCC`, `FF0000`)
+- Inspect **slide layouts** — both name fields, master/theme relationships, and which slides use each layout
 
-It supports atomic many-to-one mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
+It supports atomic many-to-one color mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
 
 ## Installation
 
@@ -81,6 +81,57 @@ Colors:
   accent2  (Accent 2):            #E97132
   accent3  (Accent 3):            #196B24
   ...
+```
+
+### List slide layouts
+
+Inspect all slide layouts in a PowerPoint file, including both name fields, the slide master and theme each layout belongs to, and which slides use it.
+
+PowerPoint stores **two separate name fields** per layout, which can differ:
+
+- **Name** (`p:cSld/@name`) — the layout name shown in Slide Master view
+- **Matching Name** (`p:sldLayout/@matchingName`) — an optional name used in the New Slide / layout picker. Absent from layouts created by PowerPoint; present on layouts imported from other tools (e.g. Google Slides). When absent, PowerPoint falls back to **Name** in the picker too.
+
+```bash
+pptx-toolkit layout list presentation.pptx
+```
+
+Example output:
+
+```
+Found 34 layout(s) in presentation.pptx:
+
+━━━ slideLayout1.xml ━━━
+Layout ID:      slideLayout1
+Name:           Title Slide
+Matching Name:  <none>
+Master:         slideMaster1.xml
+Theme:          theme1.xml
+Used By Slides: 1
+
+━━━ slideLayout12.xml ━━━
+Layout ID:      slideLayout12
+Name:           matchName-test
+Matching Name:  Layout with matchName property
+Master:         slideMaster1.xml
+Theme:          theme1.xml
+Used By Slides: none
+```
+
+**Filters:**
+
+```bash
+# By layout file
+pptx-toolkit layout list presentation.pptx --layout-id slideLayout4
+
+# By Name (p:cSld/@name) — exact, case-sensitive
+pptx-toolkit layout list presentation.pptx --name "Title Slide"
+
+# By Matching Name (p:sldLayout/@matchingName) — exact, case-sensitive
+pptx-toolkit layout list presentation.pptx --matching-name "Contacto + soher"
+
+# By theme
+pptx-toolkit layout list presentation.pptx --theme theme1
 ```
 
 ### Swap color references

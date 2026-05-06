@@ -400,42 +400,8 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	defer os.RemoveAll(tempDir)
 
 	// Extract PPTX
-	zipReader, err := zip.OpenReader(inputPath)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to open PPTX: %w", err)
-	}
-	defer zipReader.Close()
-
-	for _, file := range zipReader.File {
-		filePath := filepath.Join(tempDir, file.Name)
-
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return 0, nil, err
-		}
-
-		outFile, err := os.Create(filePath)
-		if err != nil {
-			return 0, nil, err
-		}
-
-		rc, err := file.Open()
-		if err != nil {
-			outFile.Close()
-			return 0, nil, err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return 0, nil, err
-		}
+	if err := extractPPTX(inputPath, tempDir); err != nil {
+		return 0, nil, err
 	}
 
 	// Build theme relationship mappings
