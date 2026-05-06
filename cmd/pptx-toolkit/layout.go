@@ -130,6 +130,10 @@ func matchesLayoutFilters(info *LayoutInfo, filters LayoutFilters, themeFiles ma
 func normalizeThemeFilter(themes []string) map[string]bool {
 	out := make(map[string]bool)
 	for _, t := range themes {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
 		if strings.HasSuffix(t, ".xml") {
 			out[t] = true
 		} else {

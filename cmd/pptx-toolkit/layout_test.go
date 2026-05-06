@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -132,6 +134,11 @@ func TestNormalizeThemeFilter(t *testing.T) {
 			input:  nil,
 			checks: nil,
 		},
+		{
+			name:   "trims whitespace and ignores empty entries",
+			input:  []string{" theme1 ", "", " theme2.xml ", "   "},
+			checks: []string{"theme1.xml", "theme2.xml"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -140,6 +147,12 @@ func TestNormalizeThemeFilter(t *testing.T) {
 			for _, k := range tt.checks {
 				if !got[k] {
 					t.Errorf("expected key %q to be present", k)
+				}
+			}
+
+			for k := range got {
+				if k == ".xml" || k == " theme1 .xml" || k == " theme2.xml " {
+					t.Errorf("unexpected unnormalized key %q", k)
 				}
 			}
 		})
@@ -392,5 +405,52 @@ func TestExtractPPTX_InvalidFile(t *testing.T) {
 	err := extractPPTX("nonexistent.pptx", destDir)
 	if err == nil {
 		t.Error("expected error for nonexistent file, got nil")
+	}
+}
+
+func TestLayoutListCommand_DoesNotLeakFiltersBetweenExecutions(t *testing.T) {
+	skipIfNoFixture(t)
+
+	origLayoutIDFilter := layoutIDFilter
+	origLayoutNameFilter := layoutNameFilter
+	origLayoutMatchFilter := layoutMatchFilter
+	origLayoutThemeFilter := append([]string(nil), layoutThemeFilter...)
+	defer func() {
+		layoutIDFilter = origLayoutIDFilter
+		layoutNameFilter = origLayoutNameFilter
+		layoutMatchFilter = origLayoutMatchFilter
+		layoutThemeFilter = origLayoutThemeFilter
+		_ = layoutListCmd.Flags().Set("layout-id", origLayoutIDFilter)
+		_ = layoutListCmd.Flags().Set("name", origLayoutNameFilter)
+		_ = layoutListCmd.Flags().Set("matching-name", origLayoutMatchFilter)
+		_ = layoutListCmd.Flags().Set("theme", strings.Join(origLayoutThemeFilter, ","))
+	}()
+
+	var firstOut bytes.Buffer
+	var firstErr bytes.Buffer
+	rootCmd.SetOut(&firstOut)
+	rootCmd.SetErr(&firstErr)
+	rootCmd.SetArgs([]string{"layout", "list", "--layout-id", "slideLayout12", testPPTX})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("first execution failed: %v; stderr=%s", err, firstErr.String())
+	}
+
+	if !strings.Contains(firstOut.String(), "slideLayout12.xml") {
+		t.Fatalf("expected filtered output to include slideLayout12.xml, got:\n%s", firstOut.String())
+	}
+
+	var secondOut bytes.Buffer
+	var secondErr bytes.Buffer
+	rootCmd.SetOut(&secondOut)
+	rootCmd.SetErr(&secondErr)
+	rootCmd.SetArgs([]string{"layout", "list", testPPTX})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("second execution failed: %v; stderr=%s", err, secondErr.String())
+	}
+
+	if strings.Contains(secondOut.String(), "Found 1 layout(s)") {
+		t.Fatalf("expected unfiltered output on second execution, got:\n%s", secondOut.String())
 	}
 }

@@ -64,6 +64,7 @@ func init() {
 func runLayoutList(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
+	defer resetLayoutFlags(cmd)
 
 	inputFile := args[0]
 
@@ -72,11 +73,10 @@ func runLayoutList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("")
 	}
 
-	filters := LayoutFilters{
-		LayoutID:     layoutIDFilter,
-		Name:         layoutNameFilter,
-		MatchingName: layoutMatchFilter,
-		Theme:        layoutThemeFilter,
+	filters, err := layoutFiltersFromCommand(cmd)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
 	}
 
 	layouts, err := ReadLayouts(inputFile, filters)
@@ -129,4 +129,51 @@ func runLayoutList(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func layoutFiltersFromCommand(cmd *cobra.Command) (LayoutFilters, error) {
+	layoutID, err := cmd.Flags().GetString("layout-id")
+	if err != nil {
+		return LayoutFilters{}, err
+	}
+
+	name, err := cmd.Flags().GetString("name")
+	if err != nil {
+		return LayoutFilters{}, err
+	}
+
+	matchingName, err := cmd.Flags().GetString("matching-name")
+	if err != nil {
+		return LayoutFilters{}, err
+	}
+
+	theme, err := cmd.Flags().GetStringSlice("theme")
+	if err != nil {
+		return LayoutFilters{}, err
+	}
+
+	return LayoutFilters{
+		LayoutID:     layoutID,
+		Name:         name,
+		MatchingName: matchingName,
+		Theme:        theme,
+	}, nil
+}
+
+func resetLayoutFlags(cmd *cobra.Command) {
+	resets := map[string]string{
+		"layout-id":     "",
+		"name":          "",
+		"matching-name": "",
+		"theme":         "",
+	}
+
+	for name, value := range resets {
+		flag := cmd.Flags().Lookup(name)
+		if flag == nil {
+			continue
+		}
+		_ = flag.Value.Set(value)
+		flag.Changed = false
+	}
 }
