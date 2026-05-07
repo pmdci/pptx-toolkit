@@ -144,6 +144,112 @@ func TestRemoveMatchingNameAttr(t *testing.T) {
 	}
 }
 
+func TestSetLayoutProperty(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		target      string
+		value       string
+		wantContain string
+	}{
+		{
+			name: "sets matching-name by replacing existing attribute",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" matchingName="Old value" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			target:      layoutPropertyMatchingName,
+			value:       `New & Better`,
+			wantContain: `matchingName="New &amp; Better"`,
+		},
+		{
+			name: "sets matching-name by creating absent attribute",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			target:      layoutPropertyMatchingName,
+			value:       `Created`,
+			wantContain: `matchingName="Created"`,
+		},
+		{
+			name: "sets cSld name by replacing existing attribute",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" preserve="1">` + "\n" +
+				`  <p:cSld name="Old"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			target:      layoutPropertyName,
+			value:       `Fresh`,
+			wantContain: `<p:cSld name="Fresh">`,
+		},
+		{
+			name: "value with dollar sign is not corrupted",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" matchingName="Old" preserve="1">` + "\n" +
+				`  <p:cSld name="Bar"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			target:      layoutPropertyMatchingName,
+			value:       `Price $100`,
+			wantContain: `matchingName="Price $100"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := setLayoutProperty([]byte(tt.input), tt.target, tt.value)
+			if err != nil {
+				t.Fatalf("setLayoutProperty returned error: %v", err)
+			}
+			if !bytes.Contains(got, []byte(tt.wantContain)) {
+				t.Fatalf("expected output to contain %q, got:\n%s", tt.wantContain, got)
+			}
+		})
+	}
+}
+
+func TestSetLayoutProperty_CopiedMissingSourceBecomesNoOp(t *testing.T) {
+	skipIfNoFixture(t)
+
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	mapping := &LayoutSetMapping{
+		SourceKind:     LayoutSetSourceProperty,
+		SourceProperty: layoutPropertyMatchingName,
+		TargetProperty: layoutPropertyName,
+	}
+
+	count, err := SetLayoutProperty(testPPTX, outFile, mapping, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("SetLayoutProperty failed: %v", err)
+	}
+	if count == 0 {
+		t.Skip("test.pptx has no layouts with matchingName")
+	}
+
+	originalLayouts, err := ReadLayouts(testPPTX, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on input failed: %v", err)
+	}
+	resultLayouts, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+
+	originalByID := make(map[string]*LayoutInfo)
+	for _, l := range originalLayouts {
+		originalByID[l.LayoutID] = l
+	}
+
+	for _, l := range resultLayouts {
+		orig := originalByID[l.LayoutID]
+		if orig == nil {
+			t.Fatalf("missing original layout for %s", l.LayoutID)
+		}
+		if orig.MatchingName == "" && l.Name != orig.Name {
+			t.Fatalf("layout %s had no matching-name but name changed from %q to %q", l.LayoutID, orig.Name, l.Name)
+		}
+	}
+}
+
 func TestRemoveLayoutMatchingName(t *testing.T) {
 	skipIfNoFixture(t)
 
@@ -210,6 +316,113 @@ func TestRemoveLayoutMatchingName_FilteredRemoval(t *testing.T) {
 					t.Errorf("non-target layout %s had matchingName cleared unexpectedly", l.LayoutID)
 				}
 			}
+		}
+	}
+}
+
+func TestSetLayoutProperty_LiteralMatchingNameAllLayouts(t *testing.T) {
+	skipIfNoFixture(t)
+
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	mapping := &LayoutSetMapping{
+		SourceKind:     LayoutSetSourceLiteral,
+		SourceLiteral:  "Layout with matchName property",
+		TargetProperty: layoutPropertyMatchingName,
+	}
+
+	count, err := SetLayoutProperty(testPPTX, outFile, mapping, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("SetLayoutProperty failed: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("expected at least one layout to be updated")
+	}
+
+	layouts, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	for _, l := range layouts {
+		if l.MatchingName != "Layout with matchName property" {
+			t.Fatalf("layout %s has MatchingName=%q, want %q", l.LayoutID, l.MatchingName, "Layout with matchName property")
+		}
+	}
+}
+
+func TestSetLayoutProperty_CopyNameToMatchingName(t *testing.T) {
+	skipIfNoFixture(t)
+
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	mapping := &LayoutSetMapping{
+		SourceKind:     LayoutSetSourceProperty,
+		SourceProperty: layoutPropertyName,
+		TargetProperty: layoutPropertyMatchingName,
+	}
+
+	count, err := SetLayoutProperty(testPPTX, outFile, mapping, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("SetLayoutProperty failed: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("expected at least one layout to be updated")
+	}
+
+	layouts, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	for _, l := range layouts {
+		if l.MatchingName != l.Name {
+			t.Fatalf("layout %s has Name=%q MatchingName=%q, expected them to match", l.LayoutID, l.Name, l.MatchingName)
+		}
+	}
+}
+
+func TestSetLayoutProperty_FilteredByLayoutID(t *testing.T) {
+	skipIfNoFixture(t)
+
+	originalLayouts, err := ReadLayouts(testPPTX, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on input failed: %v", err)
+	}
+	originalByID := make(map[string]*LayoutInfo)
+	for _, l := range originalLayouts {
+		originalByID[l.LayoutID] = l
+	}
+
+	targetID := "slideLayout12"
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	mapping := &LayoutSetMapping{
+		SourceKind:     LayoutSetSourceLiteral,
+		SourceLiteral:  "Only target changed",
+		TargetProperty: layoutPropertyMatchingName,
+	}
+
+	count, err := SetLayoutProperty(testPPTX, outFile, mapping, LayoutFilters{LayoutID: targetID})
+	if err != nil {
+		t.Fatalf("SetLayoutProperty failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 layout updated, got %d", count)
+	}
+
+	layouts, err := ReadLayouts(outFile, LayoutFilters{})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	for _, l := range layouts {
+		if l.LayoutID == targetID {
+			if l.MatchingName != "Only target changed" {
+				t.Fatalf("target layout %s has MatchingName=%q", l.LayoutID, l.MatchingName)
+			}
+			continue
+		}
+		orig := originalByID[l.LayoutID]
+		if orig == nil {
+			t.Fatalf("missing original layout for %s", l.LayoutID)
+		}
+		if l.MatchingName != orig.MatchingName {
+			t.Fatalf("non-target layout %s changed from %q to %q", l.LayoutID, orig.MatchingName, l.MatchingName)
 		}
 	}
 }

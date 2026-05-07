@@ -343,3 +343,103 @@ func TestParseColorMapping_InvalidHexColors(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLayoutSetMapping_Valid(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected LayoutSetMapping
+	}{
+		{
+			name:  "property to property",
+			input: "@name:matching-name",
+			expected: LayoutSetMapping{
+				SourceKind:     LayoutSetSourceProperty,
+				SourceProperty: layoutPropertyName,
+				TargetProperty: layoutPropertyMatchingName,
+			},
+		},
+		{
+			name:  "reverse property copy",
+			input: "@matching-name:name",
+			expected: LayoutSetMapping{
+				SourceKind:     LayoutSetSourceProperty,
+				SourceProperty: layoutPropertyMatchingName,
+				TargetProperty: layoutPropertyName,
+			},
+		},
+		{
+			name:  "literal to property",
+			input: "Layout with matchName property:matching-name",
+			expected: LayoutSetMapping{
+				SourceKind:     LayoutSetSourceLiteral,
+				SourceLiteral:  "Layout with matchName property",
+				TargetProperty: layoutPropertyMatchingName,
+			},
+		},
+		{
+			name:  "literal with colon uses last separator",
+			input: "Layout: v2:name",
+			expected: LayoutSetMapping{
+				SourceKind:     LayoutSetSourceLiteral,
+				SourceLiteral:  "Layout: v2",
+				TargetProperty: layoutPropertyName,
+			},
+		},
+		{
+			name:  "whitespace trimmed around mapping parts",
+			input: "  @name : matching-name  ",
+			expected: LayoutSetMapping{
+				SourceKind:     LayoutSetSourceProperty,
+				SourceProperty: layoutPropertyName,
+				TargetProperty: layoutPropertyMatchingName,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseLayoutSetMapping(tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.SourceKind != tt.expected.SourceKind ||
+				got.SourceLiteral != tt.expected.SourceLiteral ||
+				got.SourceProperty != tt.expected.SourceProperty ||
+				got.TargetProperty != tt.expected.TargetProperty {
+				t.Fatalf("unexpected mapping: got %+v want %+v", *got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseLayoutSetMapping_Invalid(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		errContains string
+	}{
+		{name: "empty", input: "", errContains: "cannot be empty"},
+		{name: "missing colon", input: "@name", errContains: "invalid mapping format"},
+		{name: "missing source", input: ":name", errContains: "cannot be empty"},
+		{name: "missing target", input: "@name:", errContains: "cannot be empty"},
+		{name: "invalid target sigil", input: "@name:@matching-name", errContains: "plain property name without '@'"},
+		{name: "same name property", input: "@name:name", errContains: "source and target properties are the same"},
+		{name: "same matching-name property", input: "@matching-name:matching-name", errContains: "source and target properties are the same"},
+		{name: "invalid source property", input: "@unknown:name", errContains: "invalid source property"},
+		{name: "invalid target property", input: "@name:unknown", errContains: "invalid target property"},
+		{name: "reserved prefix with unknown property", input: "@literal:matching-name", errContains: "invalid source property"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseLayoutSetMapping(tt.input)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.errContains)
+			}
+			if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.errContains)) {
+				t.Fatalf("expected error containing %q, got %v", tt.errContains, err)
+			}
+		})
+	}
+}

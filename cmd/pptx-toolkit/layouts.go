@@ -58,6 +58,39 @@ var layoutRemoveCmd = &cobra.Command{
 	Long:  "Remove properties from slide layouts in PowerPoint files.",
 }
 
+var layoutSetCmd = &cobra.Command{
+	Use:   "set <source>:<target> <input.pptx> <output.pptx>",
+	Short: "Set layout properties",
+	Long: `Set slide layout properties in a PowerPoint file.
+
+The mapping is directional:
+  source:target
+
+Source may be either:
+  @name             Copy from p:cSld/@name
+  @matching-name    Copy from p:sldLayout/@matchingName
+  Literal string    Set a literal value
+
+Target must be one of:
+  name
+  matching-name
+
+Without filters, the assignment is applied to all layouts. Filters narrow which
+layouts are affected.
+
+Examples:
+  # Copy name into matching-name for all layouts
+  pptx-toolkit layout set @name:matching-name input.pptx output.pptx
+
+  # Copy matching-name into name where present
+  pptx-toolkit layout set @matching-name:name input.pptx output.pptx
+
+  # Set a literal matching-name on one layout
+  pptx-toolkit layout set "Layout with matchName property":matching-name input.pptx output.pptx --layout-id slideLayout12`,
+	Args: cobra.ExactArgs(3),
+	RunE: runLayoutSet,
+}
+
 var layoutRemoveMatchingNameCmd = &cobra.Command{
 	Use:   "matching-name <input.pptx> <output.pptx>",
 	Short: "Remove the matchingName attribute from slide layouts",
@@ -81,6 +114,7 @@ Examples:
 
 func init() {
 	layoutCmd.AddCommand(layoutListCmd)
+	layoutCmd.AddCommand(layoutSetCmd)
 	layoutCmd.AddCommand(layoutRemoveCmd)
 	layoutRemoveCmd.AddCommand(layoutRemoveMatchingNameCmd)
 
@@ -88,6 +122,11 @@ func init() {
 	layoutListCmd.Flags().StringVar(&layoutNameFilter, "name", "", "Filter by p:cSld/@name (exact, case-sensitive)")
 	layoutListCmd.Flags().StringVar(&layoutMatchFilter, "matching-name", "", "Filter by p:sldLayout/@matchingName (exact, case-sensitive)")
 	layoutListCmd.Flags().StringSliceVar(&layoutThemeFilter, "theme", nil, "Comma-separated list of themes to target (e.g. theme1,theme2)")
+
+	layoutSetCmd.Flags().String("layout-id", "", "Filter by layout ID (e.g. slideLayout4)")
+	layoutSetCmd.Flags().String("name", "", "Filter by p:cSld/@name (exact, case-sensitive)")
+	layoutSetCmd.Flags().String("matching-name", "", "Filter by p:sldLayout/@matchingName (exact, case-sensitive)")
+	layoutSetCmd.Flags().StringSlice("theme", nil, "Comma-separated list of themes to target (e.g. theme1,theme2)")
 
 	layoutRemoveMatchingNameCmd.Flags().String("layout-id", "", "Filter by layout ID (e.g. slideLayout4)")
 	layoutRemoveMatchingNameCmd.Flags().String("name", "", "Filter by p:cSld/@name (exact, case-sensitive)")
@@ -223,6 +262,44 @@ func runLayoutRemoveMatchingName(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("Removed matching-name from %d layout(s) in %s\n", count, outputFile)
+	return nil
+}
+
+func runLayoutSet(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	defer resetLayoutFlags(cmd)
+
+	mappingStr, inputFile, outputFile := args[0], args[1], args[2]
+
+	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
+		return err
+	}
+
+	mapping, err := ParseLayoutSetMapping(mappingStr)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
+	}
+
+	filters, err := layoutFiltersFromCommand(cmd)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
+	}
+
+	count, err := SetLayoutProperty(inputFile, outputFile, mapping, filters)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
+	}
+
+	if count == 0 {
+		cmd.Println("No layouts were updated matching the specified filters.")
+		return nil
+	}
+
+	cmd.Printf("Updated %s on %d layout(s) in %s\n", mapping.TargetProperty, count, outputFile)
 	return nil
 }
 

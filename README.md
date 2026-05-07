@@ -128,7 +128,7 @@ pptx-toolkit layout list presentation.pptx --layout-id slideLayout4
 pptx-toolkit layout list presentation.pptx --name "Title Slide"
 
 # By Matching Name (p:sldLayout/@matchingName) — exact, case-sensitive
-pptx-toolkit layout list presentation.pptx --matching-name "Contacto + soher"
+pptx-toolkit layout list presentation.pptx --matching-name "Contact Sheet"
 
 # By theme
 pptx-toolkit layout list presentation.pptx --theme theme1
@@ -146,7 +146,31 @@ pptx-toolkit layout remove matching-name input.pptx output.pptx
 pptx-toolkit layout remove matching-name input.pptx output.pptx --layout-id slideLayout12
 
 # Remove from layouts with a specific matching name
-pptx-toolkit layout remove matching-name input.pptx output.pptx --matching-name "Contacto + soher"
+pptx-toolkit layout remove matching-name input.pptx output.pptx --matching-name "Contact Sheet"
+```
+
+Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filters as `layout list`.
+
+### Set layout properties
+
+Set layout `name` (`p:cSld/@name`) or `matching-name` (`p:sldLayout/@matchingName`) across all matched layouts.
+
+The mapping is directional:
+
+- left side = source
+- right side = target property
+
+Use `@name` or `@matching-name` on the left to copy from an existing property. Any other left-side value is treated as a literal string.
+
+```bash
+# Copy name into matching-name for all layouts
+pptx-toolkit layout set @name:matching-name input.pptx output.pptx
+
+# Copy matching-name into name where present
+pptx-toolkit layout set @matching-name:name input.pptx output.pptx
+
+# Set a literal matching-name on one layout
+pptx-toolkit layout set "Layout with matchName property":matching-name input.pptx output.pptx --layout-id slideLayout12
 ```
 
 Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filters as `layout list`.
