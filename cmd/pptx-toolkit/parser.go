@@ -7,6 +7,25 @@ import (
 	"strings"
 )
 
+const (
+	layoutPropertyName         = "name"
+	layoutPropertyMatchingName = "matching-name"
+)
+
+type LayoutSetSourceKind string
+
+const (
+	LayoutSetSourceLiteral  LayoutSetSourceKind = "literal"
+	LayoutSetSourceProperty LayoutSetSourceKind = "property"
+)
+
+type LayoutSetMapping struct {
+	SourceKind     LayoutSetSourceKind
+	SourceLiteral  string
+	SourceProperty string
+	TargetProperty string
+}
+
 // ValidSchemeColors defines the set of valid PowerPoint scheme colors
 var ValidSchemeColors = map[string]bool{
 	"dk1":      true,
@@ -129,4 +148,62 @@ func getValidColorsString() string {
 	}
 	sort.Strings(colors)
 	return strings.Join(colors, ", ")
+}
+
+func isValidLayoutProperty(property string) bool {
+	return property == layoutPropertyName || property == layoutPropertyMatchingName
+}
+
+// ParseLayoutSetMapping parses a layout set mapping expression.
+//
+// The syntax is:
+//   - "@name:matching-name" for property-to-property copy
+//   - "Literal value:matching-name" for literal-to-property assignment
+//
+// The left side may be either a literal string or a property reference marked
+// with '@'. The right side must always be a supported property name without a sigil.
+func ParseLayoutSetMapping(mappingStr string) (*LayoutSetMapping, error) {
+	mappingStr = strings.TrimSpace(mappingStr)
+	if mappingStr == "" {
+		return nil, fmt.Errorf("mapping string cannot be empty")
+	}
+
+	sep := strings.LastIndex(mappingStr, ":")
+	if sep == -1 {
+		return nil, fmt.Errorf("invalid mapping format: %q. Expected 'source:target'", mappingStr)
+	}
+
+	source := strings.TrimSpace(mappingStr[:sep])
+	target := strings.TrimSpace(mappingStr[sep+1:])
+	if source == "" || target == "" {
+		return nil, fmt.Errorf("invalid mapping: %q. Source and target cannot be empty", mappingStr)
+	}
+
+	if strings.HasPrefix(target, "@") {
+		return nil, fmt.Errorf("invalid target property: %q. Target must be a plain property name without '@'", target)
+	}
+	if !isValidLayoutProperty(target) {
+		return nil, fmt.Errorf("invalid target property: %q. Must be one of: %s, %s", target, layoutPropertyName, layoutPropertyMatchingName)
+	}
+
+	mapping := &LayoutSetMapping{TargetProperty: target}
+	if strings.HasPrefix(source, "@") {
+		property := strings.TrimSpace(strings.TrimPrefix(source, "@"))
+		if property == "" {
+			return nil, fmt.Errorf("invalid source property: %q", source)
+		}
+		if !isValidLayoutProperty(property) {
+			return nil, fmt.Errorf("invalid source property: %q. Must be one of: %s, %s", property, layoutPropertyName, layoutPropertyMatchingName)
+		}
+		if property == target {
+			return nil, fmt.Errorf("source and target properties are the same; exiting")
+		}
+		mapping.SourceKind = LayoutSetSourceProperty
+		mapping.SourceProperty = property
+		return mapping, nil
+	}
+
+	mapping.SourceKind = LayoutSetSourceLiteral
+	mapping.SourceLiteral = source
+	return mapping, nil
 }

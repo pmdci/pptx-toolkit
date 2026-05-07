@@ -6,12 +6,12 @@ A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap 
 
 ## What it does
 
-pptx-toolkit reads PowerPoint files and manipulates color references throughout slides, layouts, and masters. You can swap between:
+pptx-toolkit reads PowerPoint files and manipulates color references and layout metadata throughout slides, layouts, and masters. You can:
 
-- **Scheme colors** (like `accent1`, `accent5`)
-- **Hex RGB values** (like `AABBCC`, `FF0000`)
+- Swap between **scheme colors** (like `accent1`, `accent5`) and **hex RGB values** (like `AABBCC`, `FF0000`)
+- Inspect **slide layouts** — both name fields, master/theme relationships, and which slides use each layout
 
-It supports atomic many-to-one mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
+It supports atomic many-to-one color mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
 
 ## Installation
 
@@ -82,6 +82,98 @@ Colors:
   accent3  (Accent 3):            #196B24
   ...
 ```
+
+### List slide layouts
+
+Inspect all slide layouts in a PowerPoint file, including both name fields, the slide master and theme each layout belongs to, and which slides use it.
+
+PowerPoint stores **two separate name fields** per layout, which can differ:
+
+- **Name** (`p:cSld/@name`) — the layout name shown in Slide Master view
+- **Matching Name** (`p:sldLayout/@matchingName`) — an optional name used in the New Slide / layout picker. Absent from layouts created by PowerPoint; present on layouts imported from other tools (e.g. Google Slides). When absent, PowerPoint falls back to **Name** in the picker too.
+
+```bash
+pptx-toolkit layout list presentation.pptx
+```
+
+Example output:
+
+```
+Found 34 layout(s) in presentation.pptx:
+
+━━━ slideLayout1.xml ━━━
+Layout ID:      slideLayout1
+Name:           Title Slide
+Matching Name:  <none>
+Master:         slideMaster1.xml
+Theme:          theme1.xml
+Used By Slides: 1
+
+━━━ slideLayout12.xml ━━━
+Layout ID:      slideLayout12
+Name:           matchName-test
+Matching Name:  Layout with matchName property
+Master:         slideMaster1.xml
+Theme:          theme1.xml
+Used By Slides: none
+```
+
+**Filters:**
+
+```bash
+# By layout file
+pptx-toolkit layout list presentation.pptx --layout-id slideLayout4
+
+# By Name (p:cSld/@name) — exact, case-sensitive
+pptx-toolkit layout list presentation.pptx --name "Title Slide"
+
+# By Matching Name (p:sldLayout/@matchingName) — exact, case-sensitive
+pptx-toolkit layout list presentation.pptx --matching-name "Contact Sheet"
+
+# By theme
+pptx-toolkit layout list presentation.pptx --theme theme1
+```
+
+### Remove matching name from layouts
+
+Remove the `matchingName` attribute (`p:sldLayout/@matchingName`) from slide layouts. Useful when importing from Google Slides or other tools that set this field and you want PowerPoint to fall back to using the standard **Name** field everywhere.
+
+```bash
+# Remove from all layouts
+pptx-toolkit layout remove matching-name input.pptx output.pptx
+
+# Remove from a specific layout
+pptx-toolkit layout remove matching-name input.pptx output.pptx --layout-id slideLayout12
+
+# Remove from layouts with a specific matching name
+pptx-toolkit layout remove matching-name input.pptx output.pptx --matching-name "Contact Sheet"
+```
+
+Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filters as `layout list`.
+
+### Set layout properties
+
+Set layout `name` (`p:cSld/@name`) or `matching-name` (`p:sldLayout/@matchingName`) across all matched layouts.
+
+The mapping is directional:
+
+- left side = source
+- right side = target property
+
+Use `@name` or `@matching-name` on the left to copy from an existing property. Any other left-side value is treated as a literal string.
+
+```bash
+# Copy name into matching-name for all layouts
+pptx-toolkit layout set @name:matching-name input.pptx output.pptx
+
+# Copy matching-name into name where present
+pptx-toolkit layout set @matching-name:name input.pptx output.pptx
+
+# Set a literal matching-name on one layout
+pptx-toolkit layout set "Layout with matchName property":matching-name input.pptx output.pptx --layout-id slideLayout12
+```
+
+Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filters as `layout list`.
 
 ### Swap color references
 

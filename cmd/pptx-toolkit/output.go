@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -31,9 +32,9 @@ func ValidateInputFile(inputFile string) error {
 func PromptOverwrite(cmd *cobra.Command, outputFile string) (bool, error) {
 	if _, err := os.Stat(outputFile); err == nil {
 		// File exists, prompt for overwrite
-		cmd.Printf("Output file '%s' already exists. Overwrite? (y/n): ", outputFile)
-		var response string
-		fmt.Scanln(&response)
+		cmd.Printf("Output file '%s' already exists. Overwrite? (y/N): ", outputFile)
+		reader := bufio.NewReader(cmd.InOrStdin())
+		response, _ := reader.ReadString('\n')
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			cmd.Println("Aborted.")
@@ -41,6 +42,21 @@ func PromptOverwrite(cmd *cobra.Command, outputFile string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// PrepareMutation validates the input file and prompts before overwriting an
+// existing output file. This keeps mutation commands consistent.
+func PrepareMutation(cmd *cobra.Command, inputFile, outputFile string) error {
+	if err := ValidateInputFile(inputFile); err != nil {
+		cmd.PrintErrln("Error:", err)
+		return fmt.Errorf("")
+	}
+
+	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
+		return err
+	}
+
+	return nil
 }
 
 // PrintProcessingHeader prints a consistent header showing what will be processed

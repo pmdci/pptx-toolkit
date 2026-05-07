@@ -400,42 +400,8 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	defer os.RemoveAll(tempDir)
 
 	// Extract PPTX
-	zipReader, err := zip.OpenReader(inputPath)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to open PPTX: %w", err)
-	}
-	defer zipReader.Close()
-
-	for _, file := range zipReader.File {
-		filePath := filepath.Join(tempDir, file.Name)
-
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return 0, nil, err
-		}
-
-		outFile, err := os.Create(filePath)
-		if err != nil {
-			return 0, nil, err
-		}
-
-		rc, err := file.Open()
-		if err != nil {
-			outFile.Close()
-			return 0, nil, err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return 0, nil, err
-		}
+	if err := extractPPTX(inputPath, tempDir); err != nil {
+		return 0, nil, err
 	}
 
 	// Build theme relationship mappings
@@ -538,44 +504,36 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		return filesProcessed, matchedSlides, err
 	}
 
-	// Create output ZIP
+	return filesProcessed, matchedSlides, repackPPTX(tempDir, outputPath)
+}
+
+func repackPPTX(tempDir, outputPath string) error {
 	outFile, err := os.Create(outputPath)
 	if err != nil {
-		return filesProcessed, matchedSlides, fmt.Errorf("failed to create output file: %w", err)
+		return fmt.Errorf("failed to create output file: %w", err)
 	}
 	defer outFile.Close()
 
 	zipWriter := zip.NewWriter(outFile)
 	defer zipWriter.Close()
 
-	// Add all files to ZIP
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+	return filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
 			return err
 		}
-
-		if info.IsDir() {
-			return nil
-		}
-
 		relPath, err := filepath.Rel(tempDir, path)
 		if err != nil {
 			return err
 		}
-
 		zipFile, err := zipWriter.Create(filepath.ToSlash(relPath))
 		if err != nil {
 			return err
 		}
-
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-
 		_, err = io.Copy(zipFile, bytes.NewReader(content))
 		return err
 	})
-
-	return filesProcessed, matchedSlides, err
 }

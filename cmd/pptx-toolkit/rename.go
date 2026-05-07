@@ -1,10 +1,8 @@
 package main
 
 import (
-	"archive/zip"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,43 +58,8 @@ func RenameColorScheme(inputPath, outputPath, newName string, themeFilter []stri
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Extract PPTX
-	zipReader, err := zip.OpenReader(inputPath)
-	if err != nil {
-		return 0, fmt.Errorf("failed to open PPTX: %w", err)
-	}
-	defer zipReader.Close()
-
-	for _, file := range zipReader.File {
-		filePath := filepath.Join(tempDir, file.Name)
-
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return 0, err
-		}
-
-		outFile, err := os.Create(filePath)
-		if err != nil {
-			return 0, err
-		}
-
-		rc, err := file.Open()
-		if err != nil {
-			outFile.Close()
-			return 0, err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return 0, err
-		}
+	if err := extractPPTX(inputPath, tempDir); err != nil {
+		return 0, err
 	}
 
 	// Build theme relationship mappings for validation
@@ -195,44 +158,5 @@ func RenameColorScheme(inputPath, outputPath, newName string, themeFilter []stri
 		return 0, fmt.Errorf("no themes were renamed (this might indicate an issue with the theme filter)")
 	}
 
-	// Create output ZIP
-	outFile, err := os.Create(outputPath)
-	if err != nil {
-		return themesRenamed, fmt.Errorf("failed to create output file: %w", err)
-	}
-	defer outFile.Close()
-
-	zipWriter := zip.NewWriter(outFile)
-	defer zipWriter.Close()
-
-	// Add all files to ZIP
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(tempDir, path)
-		if err != nil {
-			return err
-		}
-
-		zipFile, err := zipWriter.Create(filepath.ToSlash(relPath))
-		if err != nil {
-			return err
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(zipFile, bytes.NewReader(content))
-		return err
-	})
-
-	return themesRenamed, err
+	return themesRenamed, repackPPTX(tempDir, outputPath)
 }

@@ -160,14 +160,7 @@ func runColorSwap(cmd *cobra.Command, args []string) error {
 	inputFile := args[1]
 	outputFile := args[2]
 
-	// Validate input file
-	if err := ValidateInputFile(inputFile); err != nil {
-		cmd.PrintErrln("Error:", err)
-		return fmt.Errorf("") // Return empty error to set exit code
-	}
-
-	// Prompt for overwrite if needed
-	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
+	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
 		return err
 	}
 
@@ -240,14 +233,7 @@ func runColorRename(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("") // Return empty error to set exit code
 	}
 
-	// Validate input file
-	if err := ValidateInputFile(inputFile); err != nil {
-		cmd.PrintErrln("Error:", err)
-		return fmt.Errorf("") // Return empty error to set exit code
-	}
-
-	// Prompt for overwrite if needed
-	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
+	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
 		return err
 	}
 
