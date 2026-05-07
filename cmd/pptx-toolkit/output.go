@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -31,9 +32,9 @@ func ValidateInputFile(inputFile string) error {
 func PromptOverwrite(cmd *cobra.Command, outputFile string) (bool, error) {
 	if _, err := os.Stat(outputFile); err == nil {
 		// File exists, prompt for overwrite
-		cmd.Printf("Output file '%s' already exists. Overwrite? (y/n): ", outputFile)
-		var response string
-		fmt.Scanln(&response)
+		cmd.Printf("Output file '%s' already exists. Overwrite? (y/N): ", outputFile)
+		reader := bufio.NewReader(cmd.InOrStdin())
+		response, _ := reader.ReadString('\n')
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			cmd.Println("Aborted.")
