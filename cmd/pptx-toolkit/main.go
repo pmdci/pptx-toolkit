@@ -41,6 +41,7 @@ func init() {
 	rootCmd.Flags().BoolP("version", "v", false, "version for pptx-toolkit")
 	rootCmd.AddCommand(colorCmd)
 	rootCmd.AddCommand(layoutCmd)
+	rootCmd.AddCommand(themeCmd)
 	// Silence errors - subcommands print their own errors
 	rootCmd.SilenceErrors = true
 }

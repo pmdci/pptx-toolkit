@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/antchfx/xmlquery"
 )
@@ -160,4 +161,48 @@ func ReadThemes(pptxPath string) ([]*Theme, error) {
 	}
 
 	return themes, nil
+}
+
+func filterThemes(themes []*Theme, themeFilter []string) ([]*Theme, error) {
+	if len(themeFilter) == 0 {
+		return themes, nil
+	}
+
+	requested := make(map[string]bool, len(themeFilter))
+	for _, theme := range themeFilter {
+		if strings.HasSuffix(theme, ".xml") {
+			requested[theme] = true
+		} else {
+			requested[theme] = true
+			requested[theme+".xml"] = true
+		}
+	}
+
+	var filtered []*Theme
+	found := make(map[string]bool, len(requested))
+	for _, theme := range themes {
+		if requested[theme.FileName] {
+			filtered = append(filtered, theme)
+			found[theme.FileName] = true
+			found[strings.TrimSuffix(theme.FileName, ".xml")] = true
+		}
+	}
+
+	var missing []string
+	for _, theme := range themeFilter {
+		if !found[theme] && !found[strings.TrimSuffix(theme, ".xml")] {
+			missing = append(missing, theme)
+		}
+	}
+
+	if len(missing) > 0 {
+		available := make([]string, 0, len(themes))
+		for _, theme := range themes {
+			available = append(available, strings.TrimSuffix(theme.FileName, ".xml"))
+		}
+		sort.Strings(available)
+		return nil, fmt.Errorf("theme(s) not found: %s\nAvailable themes: %s", strings.Join(missing, ", "), strings.Join(available, ", "))
+	}
+
+	return filtered, nil
 }

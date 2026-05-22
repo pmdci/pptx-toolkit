@@ -60,9 +60,13 @@ codesign -s - pptx-toolkit
 View all themes and their color schemes in a PowerPoint file:
 
 ```bash
-pptx-toolkit color list presentation.pptx
-# or use UK spelling
-pptx-toolkit colour list presentation.pptx
+pptx-toolkit theme color list presentation.pptx
+```
+
+Filter to specific theme files:
+
+```bash
+pptx-toolkit theme color list presentation.pptx --theme theme1,theme2
 ```
 
 Example output:
@@ -178,6 +182,18 @@ Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filt
 ### Swap color references
 
 Replace color references throughout the presentation. Supports both scheme colors (e.g., `accent1`) and hex RGB values (e.g., `AABBCC`).
+
+### Rename a theme color scheme
+
+Rename the colour scheme name stored in one or more theme definitions:
+
+```bash
+# Rename in all themes
+pptx-toolkit theme color rename "Corporate Brand" input.pptx output.pptx
+
+# Rename only selected themes
+pptx-toolkit theme color rename "Corporate Brand" input.pptx output.pptx --theme theme1,theme2
+```
 
 ```bash
 # Scheme to scheme

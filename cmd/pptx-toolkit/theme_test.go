@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -171,5 +172,42 @@ func TestParseThemeXML_SystemColors(t *testing.T) {
 	// Regular srgbClr should still work
 	if theme.Colors.Accent1 != "156082" {
 		t.Errorf("expected accent1 '156082', got '%s'", theme.Colors.Accent1)
+	}
+}
+
+func TestFilterThemes(t *testing.T) {
+	themes := []*Theme{
+		{FileName: "theme1.xml", ThemeName: "One"},
+		{FileName: "theme2.xml", ThemeName: "Two"},
+	}
+
+	filtered, err := filterThemes(themes, []string{"theme2"})
+	if err != nil {
+		t.Fatalf("filterThemes returned error: %v", err)
+	}
+	if len(filtered) != 1 || filtered[0].FileName != "theme2.xml" {
+		t.Fatalf("expected only theme2.xml, got %+v", filtered)
+	}
+
+	filtered, err = filterThemes(themes, []string{"theme1.xml", "theme2"})
+	if err != nil {
+		t.Fatalf("filterThemes returned error: %v", err)
+	}
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 themes, got %d", len(filtered))
+	}
+}
+
+func TestFilterThemes_MissingTheme(t *testing.T) {
+	themes := []*Theme{
+		{FileName: "theme1.xml", ThemeName: "One"},
+	}
+
+	_, err := filterThemes(themes, []string{"theme2"})
+	if err == nil {
+		t.Fatal("expected error for missing theme")
+	}
+	if !strings.Contains(err.Error(), "theme(s) not found: theme2") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
