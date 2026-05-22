@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/antchfx/xmlquery"
+	toolkitpptx "github.com/pmdci/pptx-toolkit/internal/pptx"
 )
 
 // invalidNameChars contains characters that are not allowed in PowerPoint element names
@@ -58,7 +59,7 @@ func RenameColorScheme(inputPath, outputPath, newName string, themeFilter []stri
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := extractPPTX(inputPath, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(inputPath, tempDir); err != nil {
 		return 0, err
 	}
 
@@ -158,5 +159,5 @@ func RenameColorScheme(inputPath, outputPath, newName string, themeFilter []stri
 		return 0, fmt.Errorf("no themes were renamed (this might indicate an issue with the theme filter)")
 	}
 
-	return themesRenamed, repackPPTX(tempDir, outputPath)
+	return themesRenamed, toolkitpptx.RepackPPTX(tempDir, outputPath)
 }

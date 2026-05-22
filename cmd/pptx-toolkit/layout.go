@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/xml"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/antchfx/xmlquery"
+	toolkitpptx "github.com/pmdci/pptx-toolkit/internal/pptx"
 )
 
 const presentationMLNamespace = "http://schemas.openxmlformats.org/presentationml/2006/main"
@@ -45,7 +45,7 @@ func ReadLayouts(pptxPath string, filters LayoutFilters) ([]*LayoutInfo, error) 
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := extractPPTX(pptxPath, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(pptxPath, tempDir); err != nil {
 		return nil, err
 	}
 
@@ -212,7 +212,7 @@ func RemoveLayoutMatchingName(inputPath, outputPath string, filters LayoutFilter
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := extractPPTX(inputPath, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(inputPath, tempDir); err != nil {
 		return 0, err
 	}
 
@@ -241,7 +241,7 @@ func RemoveLayoutMatchingName(inputPath, outputPath string, filters LayoutFilter
 		count++
 	}
 
-	if err := repackPPTX(tempDir, outputPath); err != nil {
+	if err := toolkitpptx.RepackPPTX(tempDir, outputPath); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -377,7 +377,7 @@ func SetLayoutProperty(inputPath, outputPath string, mapping *LayoutSetMapping, 
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := extractPPTX(inputPath, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(inputPath, tempDir); err != nil {
 		return 0, err
 	}
 
@@ -420,7 +420,7 @@ func SetLayoutProperty(inputPath, outputPath string, mapping *LayoutSetMapping, 
 		count++
 	}
 
-	if err := repackPPTX(tempDir, outputPath); err != nil {
+	if err := toolkitpptx.RepackPPTX(tempDir, outputPath); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -474,46 +474,4 @@ func layoutNumber(fileName string) (int, error) {
 		return 0, fmt.Errorf("cannot parse layout number from %q", fileName)
 	}
 	return strconv.Atoi(m[1])
-}
-
-// extractPPTX extracts a PPTX zip archive into destDir.
-func extractPPTX(pptxPath, destDir string) error {
-	r, err := zip.OpenReader(pptxPath)
-	if err != nil {
-		return fmt.Errorf("failed to open PPTX: %w", err)
-	}
-	defer r.Close()
-
-	for _, f := range r.File {
-		dest := filepath.Join(destDir, f.Name)
-
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(dest, os.ModePerm)
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(dest), os.ModePerm); err != nil {
-			return err
-		}
-
-		out, err := os.Create(dest)
-		if err != nil {
-			return err
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			out.Close()
-			return err
-		}
-
-		_, err = io.Copy(out, rc)
-		out.Close()
-		rc.Close()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

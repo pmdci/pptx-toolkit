@@ -1,16 +1,14 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/antchfx/xmlquery"
+	toolkitpptx "github.com/pmdci/pptx-toolkit/internal/pptx"
 )
 
 // buildThemeRelationships builds a mapping of slide masters to their themes
@@ -400,7 +398,7 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 	defer os.RemoveAll(tempDir)
 
 	// Extract PPTX
-	if err := extractPPTX(inputPath, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(inputPath, tempDir); err != nil {
 		return 0, nil, err
 	}
 
@@ -504,36 +502,5 @@ func ProcessPPTX(inputPath, outputPath string, colorMapping map[string]string, t
 		return filesProcessed, matchedSlides, err
 	}
 
-	return filesProcessed, matchedSlides, repackPPTX(tempDir, outputPath)
-}
-
-func repackPPTX(tempDir, outputPath string) error {
-	outFile, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
-	}
-	defer outFile.Close()
-
-	zipWriter := zip.NewWriter(outFile)
-	defer zipWriter.Close()
-
-	return filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return err
-		}
-		relPath, err := filepath.Rel(tempDir, path)
-		if err != nil {
-			return err
-		}
-		zipFile, err := zipWriter.Create(filepath.ToSlash(relPath))
-		if err != nil {
-			return err
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(zipFile, bytes.NewReader(content))
-		return err
-	})
+	return filesProcessed, matchedSlides, toolkitpptx.RepackPPTX(tempDir, outputPath)
 }

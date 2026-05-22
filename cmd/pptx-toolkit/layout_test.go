@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	toolkitpptx "github.com/pmdci/pptx-toolkit/internal/pptx"
 )
 
 const testPPTX = "testdata/test.pptx"
@@ -811,7 +813,7 @@ func TestBuildSlideToLayoutMapping(t *testing.T) {
 	skipIfNoFixture(t)
 
 	tempDir := t.TempDir()
-	if err := extractPPTX(testPPTX, tempDir); err != nil {
+	if err := toolkitpptx.ExtractPPTX(testPPTX, tempDir); err != nil {
 		t.Fatalf("extractPPTX failed: %v", err)
 	}
 
@@ -832,36 +834,5 @@ func TestBuildSlideToLayoutMapping(t *testing.T) {
 				t.Errorf("%s: slide numbers not sorted: %v", layoutFile, slides)
 			}
 		}
-	}
-}
-
-// --- extractPPTX ---
-
-func TestExtractPPTX(t *testing.T) {
-	skipIfNoFixture(t)
-
-	destDir := t.TempDir()
-	if err := extractPPTX(testPPTX, destDir); err != nil {
-		t.Fatalf("extractPPTX failed: %v", err)
-	}
-
-	// presentation.xml must exist after extraction
-	presentationPath := filepath.Join(destDir, "ppt", "presentation.xml")
-	if _, err := os.Stat(presentationPath); os.IsNotExist(err) {
-		t.Error("presentation.xml not found after extraction")
-	}
-
-	// At least one layout file must exist
-	layouts, err := filepath.Glob(filepath.Join(destDir, "ppt", "slideLayouts", "slideLayout*.xml"))
-	if err != nil || len(layouts) == 0 {
-		t.Error("no layout files found after extraction")
-	}
-}
-
-func TestExtractPPTX_InvalidFile(t *testing.T) {
-	destDir := t.TempDir()
-	err := extractPPTX("nonexistent.pptx", destDir)
-	if err == nil {
-		t.Error("expected error for nonexistent file, got nil")
 	}
 }
