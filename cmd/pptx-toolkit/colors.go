@@ -1,3 +1,4 @@
+// colors.go contains Cobra command wiring for the color domain.
 package main
 
 import (
