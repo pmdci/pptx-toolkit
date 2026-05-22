@@ -1,4 +1,3 @@
-// layout_cmd.go contains Cobra command wiring for the layout domain.
 package main
 
 import (
