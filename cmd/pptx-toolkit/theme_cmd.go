@@ -33,7 +33,7 @@ Examples:
   pptx-toolkit theme set input.pptx output.pptx --theme theme2 --name "Contoso Blue II Deck"
 
   # Theme filter also accepts the .xml suffix
-  pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "Adventureworks Corporate Deck"`,
+  pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "AdventureWorks Deck"`,
 	Args: cobra.ExactArgs(2),
 	RunE: runThemeSet,
 }

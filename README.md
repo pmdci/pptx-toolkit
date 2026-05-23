@@ -2,16 +2,18 @@
 
 ![PPTX-Toolkit Banner](assets/pptx-toolkit_social.png)
 
-A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Inspect and modify theme colors, fonts, and slide layouts without unpacking the file yourself.
+A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Inspect and modify theme colors, theme metadata, fonts, and slide layouts without unpacking the file yourself.
 
 ## What it does
 
-pptx-toolkit reads PowerPoint files and manipulates color references, font schemes, and layout metadata throughout slides, layouts, and masters. You can:
+pptx-toolkit reads PowerPoint files and manipulates color references, theme metadata, font schemes, and layout metadata throughout slides, layouts, and masters. You can:
 
 - Swap between **scheme colors** (like `accent1`, `accent5`) and **hex RGB values** (like `AABBCC`, `FF0000`)
 - Inspect and rename **theme names** — the human-readable names PowerPoint shows for slide masters
+- Inspect and rename **theme colour scheme names**
 - Inspect and set **theme fonts** — the major (headings) and minor (body) typefaces defined in each theme
 - Inspect **slide layouts** — both name fields, master/theme relationships, and which slides use each layout
+- Set or remove **slide layout metadata** such as `name` and `matchingName`
 
 It supports atomic many-to-one color mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
 
@@ -110,10 +112,10 @@ This is the CLI equivalent of renaming a slide master in PowerPoint; PowerPoint 
 
 ```bash
 # Rename one slide-master-bound theme
-pptx-toolkit theme set input.pptx output.pptx --theme theme2 --name "Blue II Deck RENAMED"
+pptx-toolkit theme set input.pptx output.pptx --theme theme2 --name "Contoso Blue II Deck"
 
 # The theme filter also accepts the .xml suffix
-pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "Corporate Deck"
+pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "AdventureWorks Deck"
 ```
 
 Notes:
@@ -451,7 +453,7 @@ pptx-toolkit color swap accent1:accent3 input.pptx output.pptx --slides 1-5 --th
 
 ## Why pptx-toolkit?
 
-Most PowerPoint manipulation tools require heavy dependencies like Python, .NET, or Office interop libraries. pptx-toolkit is a single binary with no dependencies that does one thing well: swap color references across your entire presentation while preserving document structure.
+Most PowerPoint manipulation tools require heavy dependencies like Python, .NET, or Office interop libraries. pptx-toolkit is a single binary with no runtime dependencies that focuses on a narrow, practical set of PowerPoint editing tasks: swapping colour references, updating theme metadata, adjusting theme fonts, and inspecting or editing slide layout metadata, all while preserving document structure.
 
 **Key features:**
 
@@ -465,9 +467,12 @@ Most PowerPoint manipulation tools require heavy dependencies like Python, .NET,
 **Use cases:**
 
 - Rebrand presentations by swapping color schemes
+- Rename theme and colour scheme metadata to match branded masters
+- Update theme fonts across a deck without opening PowerPoint
 - Replace hardcoded hex colors with theme colors for consistency
 - Convert theme colors to specific hex values for brand compliance
 - Unify color usage across multiple presentations
+- Inspect or normalise slide layout names and matching names
 - Fix accidental color misuse in slide decks
 - Automate presentation styling in CI/CD pipelines
 
