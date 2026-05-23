@@ -116,7 +116,12 @@ func runThemeFontSet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("")
 	}
 
-	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
+	err = PrepareMutation(cmd, inputFile, outputFile)
+	aborted, err := ignoreMutationAborted(err)
+	if aborted {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 

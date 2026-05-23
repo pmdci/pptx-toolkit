@@ -19,10 +19,20 @@ var (
 		"<", "&lt;",
 		">", "&gt;",
 	)
+
+	xmlTextEscaper = strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+	)
 )
 
 func escapeXMLAttributeValue(value string) string {
 	return xmlAttributeEscaper.Replace(value)
+}
+
+func escapeXMLTextContent(value string) string {
+	return xmlTextEscaper.Replace(value)
 }
 
 func findStartElementRange(content []byte, matcher func(xml.StartElement, int) bool, context string) (int, int, error) {

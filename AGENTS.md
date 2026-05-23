@@ -99,6 +99,8 @@ This repository contains implementation code and supporting documentation.
 - The repository root `README.md` should describe the current user-facing behavior of the tool: commands, flags, workflows, and important limitations.
 - `docs/` contains supporting specifications, research notes, and design or implementation references that explain how features work and why certain decisions were made.
 - `docs/README.md`, when present, should be maintained as the index for the `docs/` directory and kept consistent with the current set of documents it organizes.
+- Pre-implementation spec documents should be rewritten after a feature ships into concise post-implementation summaries. Keep final behavior, invariants, edge cases, related docs, and important maintenance notes; remove planning-only material once it is no longer useful.
+- When a spec document is materially updated, keep its metadata current (for example `Status:` and `Last Updated:` when used by that document).
 
 When making changes, update the relevant documentation in the same piece of work whenever the change affects:
 
@@ -107,7 +109,7 @@ When making changes, update the relevant documentation in the same piece of work
 - Implementation constraints, invariants, or known limitations
 - Any existing spec, research note, directory index, or README example that would otherwise become stale
 
-Do not leave documentation knowingly out of sync with the code. If a document is no longer accurate, update it or remove or replace the stale section as part of the change.
+Do not leave documentation knowingly out of sync with the code. If a document is no longer accurate, update it or replace/remove the stale section as part of the change.
 
 ## Release Process
 

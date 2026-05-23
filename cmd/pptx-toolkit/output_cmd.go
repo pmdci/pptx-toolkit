@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -18,6 +19,8 @@ type ProcessingConfig struct {
 	SlidesMatched *int     // Number of slides matched (nil if not applicable)
 	Scope         string   // "all", "content", "master"
 }
+
+var errMutationAborted = errors.New("mutation aborted by user")
 
 // ValidateInputFile checks if the input file exists
 func ValidateInputFile(inputFile string) error {
@@ -53,10 +56,20 @@ func PrepareMutation(cmd *cobra.Command, inputFile, outputFile string) error {
 	}
 
 	if shouldContinue, err := PromptOverwrite(cmd, outputFile); err != nil || !shouldContinue {
-		return err
+		if err != nil {
+			return err
+		}
+		return errMutationAborted
 	}
 
 	return nil
+}
+
+func ignoreMutationAborted(err error) (bool, error) {
+	if errors.Is(err, errMutationAborted) {
+		return true, nil
+	}
+	return false, err
 }
 
 // PrintProcessingHeader prints a consistent header showing what will be processed
@@ -93,14 +106,14 @@ func PrintProcessingHeader(cmd *cobra.Command, inputFile string, config Processi
 	// Print matched slides feedback (only when both --slides and --theme are used)
 	if config.SlidesMatched != nil {
 		switch *config.SlidesMatched {
-        case 0:
-                cmd.Println("→ No slides matched the theme filter")
-        case 1:
-                cmd.Println("→ 1 slide matched")
-        default:
-                cmd.Printf("→ %d slides matched\n", *config.SlidesMatched)
-        }
-    }
+		case 0:
+			cmd.Println("→ No slides matched the theme filter")
+		case 1:
+			cmd.Println("→ 1 slide matched")
+		default:
+			cmd.Printf("→ %d slides matched\n", *config.SlidesMatched)
+		}
+	}
 }
 
 // PrintSuccess prints a consistent success message

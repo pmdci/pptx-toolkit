@@ -9,6 +9,7 @@ A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Inspe
 pptx-toolkit reads PowerPoint files and manipulates color references, font schemes, and layout metadata throughout slides, layouts, and masters. You can:
 
 - Swap between **scheme colors** (like `accent1`, `accent5`) and **hex RGB values** (like `AABBCC`, `FF0000`)
+- Inspect and rename **theme names** — the human-readable names PowerPoint shows for slide masters
 - Inspect and set **theme fonts** — the major (headings) and minor (body) typefaces defined in each theme
 - Inspect **slide layouts** — both name fields, master/theme relationships, and which slides use each layout
 
@@ -100,6 +101,27 @@ Font Scheme:  Office
 Bindings:
   Handout master: handoutMaster1.xml
 ```
+
+### Rename a theme
+
+Rename the human-readable theme name shown by PowerPoint for a slide master:
+
+This is the CLI equivalent of renaming a slide master in PowerPoint; PowerPoint persists that UI rename as the theme name in the PPTX.
+
+```bash
+# Rename one slide-master-bound theme
+pptx-toolkit theme set input.pptx output.pptx --theme theme2 --name "Blue II Deck RENAMED"
+
+# The theme filter also accepts the .xml suffix
+pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "Corporate Deck"
+```
+
+Notes:
+
+- `--theme` is required and must resolve to exactly one theme
+- only slide-master-bound themes can be renamed; notes and handout themes are rejected
+- names must be non-empty; XML-sensitive characters are preserved and written safely
+- when `docProps/app.xml` is present, the command keeps its theme metadata in sync
 
 ### List themes and colors
 

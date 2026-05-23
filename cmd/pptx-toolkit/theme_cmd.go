@@ -21,6 +21,23 @@ var themeListCmd = &cobra.Command{
 	RunE:  runThemeList,
 }
 
+var themeSetCmd = &cobra.Command{
+	Use:   "set <input.pptx> <output.pptx>",
+	Short: "Set theme properties",
+	Long: `Set theme properties in a PowerPoint file.
+
+Sets the human-readable theme name on a single slide-master-bound theme.
+
+Examples:
+  # Rename one theme
+  pptx-toolkit theme set input.pptx output.pptx --theme theme2 --name "Contoso Blue II Deck"
+
+  # Theme filter also accepts the .xml suffix
+  pptx-toolkit theme set input.pptx output.pptx --theme theme2.xml --name "Adventureworks Corporate Deck"`,
+	Args: cobra.ExactArgs(2),
+	RunE: runThemeSet,
+}
+
 var themeColorCmd = &cobra.Command{
 	Use:     "color",
 	Aliases: []string{"colour"},
@@ -55,6 +72,8 @@ Examples:
 
 var (
 	themeListFilter      []string
+	themeSetFilter       []string
+	themeSetName         string
 	themeColorListFilter []string
 	themeColorSetFilter  []string
 	themeColorSetName    string
@@ -62,12 +81,15 @@ var (
 
 func init() {
 	themeCmd.AddCommand(themeListCmd)
+	themeCmd.AddCommand(themeSetCmd)
 	themeCmd.AddCommand(themeColorCmd)
 	themeCmd.AddCommand(themeFontCmd)
 	themeColorCmd.AddCommand(themeColorListCmd)
 	themeColorCmd.AddCommand(themeColorSetCmd)
 
 	themeListCmd.Flags().StringSliceVar(&themeListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
+	themeSetCmd.Flags().StringSliceVar(&themeSetFilter, "theme", nil, "Theme to target (required; accepts theme1 or theme1.xml)")
+	themeSetCmd.Flags().StringVar(&themeSetName, "name", "", "Set the theme name")
 	themeColorListCmd.Flags().StringSliceVar(&themeColorListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 	themeColorSetCmd.Flags().StringVar(&themeColorSetName, "scheme-name", "", "Set the colour scheme name")
 	themeColorSetCmd.Flags().StringSliceVar(&themeColorSetFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
@@ -108,8 +130,62 @@ func resetThemeListFlags(_ *cobra.Command) {
 	themeListFilter = nil
 }
 
+func resetThemeSetFlags(cmd *cobra.Command) {
+	themeSetFilter = nil
+	themeSetName = ""
+
+	if flag := cmd.Flags().Lookup("name"); flag != nil {
+		_ = flag.Value.Set("")
+		flag.Changed = false
+	}
+	if flag := cmd.Flags().Lookup("theme"); flag != nil {
+		flag.Changed = false
+	}
+}
+
 func runThemeColorList(cmd *cobra.Command, args []string) error {
 	return printThemeColorList(cmd, args[0], themeColorListFilter)
+}
+
+func runThemeSet(cmd *cobra.Command, args []string) error {
+	defer resetThemeSetFlags(cmd)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	inputFile := args[0]
+	outputFile := args[1]
+
+	if themeSetName == "" {
+		cmd.PrintErrln("Error: --name is required")
+		return fmt.Errorf("")
+	}
+	targetTheme, err := normalizeSingleThemeTarget(themeSetFilter)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
+	}
+	err = PrepareMutation(cmd, inputFile, outputFile)
+	aborted, err := ignoreMutationAborted(err)
+	if aborted {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	cmd.Printf("Setting theme properties in %s → %s\n\n", inputFile, outputFile)
+	cmd.Printf("  Theme target:  %s\n", strings.TrimSuffix(targetTheme, ".xml"))
+	cmd.Printf("  Theme name:    %s\n", themeSetName)
+
+	count, err := SetThemeName(inputFile, outputFile, themeSetName, themeSetFilter)
+	if err != nil {
+		cmd.PrintErrf("\nError: %v\n", err)
+		return fmt.Errorf("")
+	}
+
+	cmd.Printf("\nModified %d theme(s).\n", count)
+	cmd.Printf("Saved to %s\n", outputFile)
+	return nil
 }
 
 func runThemeColorSet(cmd *cobra.Command, args []string) error {
@@ -126,7 +202,12 @@ func runThemeColorSet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("")
 	}
 
-	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
+	err := PrepareMutation(cmd, inputFile, outputFile)
+	aborted, err := ignoreMutationAborted(err)
+	if aborted {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 

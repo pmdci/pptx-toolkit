@@ -240,7 +240,12 @@ func runLayoutRemoveMatchingName(cmd *cobra.Command, args []string) error {
 
 	inputFile, outputFile := args[0], args[1]
 
-	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
+	err := PrepareMutation(cmd, inputFile, outputFile)
+	aborted, err := ignoreMutationAborted(err)
+	if aborted {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 
@@ -272,7 +277,12 @@ func runLayoutSet(cmd *cobra.Command, args []string) error {
 
 	mappingStr, inputFile, outputFile := args[0], args[1], args[2]
 
-	if err := PrepareMutation(cmd, inputFile, outputFile); err != nil {
+	err := PrepareMutation(cmd, inputFile, outputFile)
+	aborted, err := ignoreMutationAborted(err)
+	if aborted {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 
