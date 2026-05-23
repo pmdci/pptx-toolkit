@@ -14,9 +14,10 @@ var themeCmd = &cobra.Command{
 }
 
 var themeColorCmd = &cobra.Command{
-	Use:   "color",
-	Short: "Theme color operations",
-	Long:  "Inspect and modify theme-defined color schemes.",
+	Use:     "color",
+	Aliases: []string{"colour"},
+	Short:   "Theme color operations",
+	Long:    "Inspect and modify theme-defined color schemes.",
 }
 
 var themeColorListCmd = &cobra.Command{
