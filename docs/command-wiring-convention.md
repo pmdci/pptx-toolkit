@@ -53,9 +53,9 @@ In other words:
 - shared lower-level logic is good
 - inconsistent command-layer organization is what is under review
 
-## Proposed Convention
+## Convention
 
-Adopt the following convention gradually:
+The project uses the following convention:
 
 - singular domain files for core logic
   - examples: `layout.go`, `theme.go`
@@ -97,7 +97,7 @@ The actual goal is to keep domain and infrastructure code callable without const
 
 ## Scope
 
-This proposal is about file organization, not package boundaries.
+This convention is about file organization, not package boundaries.
 
 Everything would still remain in the same Go package unless there is a separate decision to break code into subpackages.
 
@@ -109,17 +109,13 @@ The goal here is modest:
 
 ## Migration Strategy
 
-The intended approach is gradual, not a large one-shot refactor.
+The remaining migration approach is gradual, not a large one-shot refactor.
 
-Possible sequence:
+What still matters going forward:
 
-1. Establish the convention in `AGENTS.md`. ✓
-2. Rename obvious command-layer files to `*_cmd.go` (`colors.go` → `colors_cmd.go`, `output.go` → `output_cmd.go`). ✓
-3. Apply the convention to new command domains going forward.
-4. Opportunistically rename any remaining command files when touching those areas anyway.
-5. Avoid behavior changes during file-organization-only refactors.
-
-This means the codebase may remain mixed for a while, which is acceptable if the direction is explicit.
+1. Apply the convention to new command domains.
+2. Opportunistically rename any remaining command files when touching those areas anyway.
+3. Avoid behavior changes during file-organization-only refactors.
 
 ## Isolation Rule
 
@@ -131,31 +127,6 @@ In practice:
 - feature additions should not be bundled into the same change as architectural cleanup
 
 This makes regressions easier to attribute and makes it safe to revert a structural decision without also reverting product work.
-
-## Related Sequencing Note
-
-This document is about command wiring, not the full `internal/` package split.
-
-However, one adjacent sequencing point is worth recording because it affects new theme work:
-
-- if `internal/pptx/` is introduced for archive I/O such as `extractPPTX` and `repackPPTX`, it is slightly better to land that base-layer extraction **before** building the new `theme` domain
-
-Reason:
-
-- it prevents new theme functionality from growing around misplaced archive helpers and repeating the same structural mistake in another domain
-- specifically, `extractPPTX` currently lives in `layout.go`, which is the kind of misplaced infrastructure dependency new domain work should avoid copying
-
-## Current Recommendation
-
-The current recommendation is:
-
-- yes, adopt the convention
-- yes, migrate gradually
-- yes, keep structural refactors isolated from feature additions
-- do not force a broad refactor immediately
-- use future work on `theme` as a good place to apply the pattern cleanly
-
-The main reason is that the project is small enough for gradual cleanup to be practical, but large enough now that architectural consistency will pay off.
 
 ## Decision Log
 

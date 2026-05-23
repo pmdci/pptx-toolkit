@@ -53,6 +53,7 @@ var (
 
 func init() {
 	themeCmd.AddCommand(themeColorCmd)
+	themeCmd.AddCommand(themeFontCmd)
 	themeColorCmd.AddCommand(themeColorListCmd)
 	themeColorCmd.AddCommand(themeColorRenameCmd)
 

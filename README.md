@@ -2,13 +2,14 @@
 
 ![PPTX-Toolkit Banner](assets/pptx-toolkit_social.png)
 
-A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Swap color references (scheme colors and hex RGB values) in slides without modifying theme definitions.
+A lightweight, cross-platform Microsoft® PowerPoint manipulation toolkit. Inspect and modify theme colors, fonts, and slide layouts without unpacking the file yourself.
 
 ## What it does
 
-pptx-toolkit reads PowerPoint files and manipulates color references and layout metadata throughout slides, layouts, and masters. You can:
+pptx-toolkit reads PowerPoint files and manipulates color references, font schemes, and layout metadata throughout slides, layouts, and masters. You can:
 
 - Swap between **scheme colors** (like `accent1`, `accent5`) and **hex RGB values** (like `AABBCC`, `FF0000`)
+- Inspect and set **theme fonts** — the major (headings) and minor (body) typefaces defined in each theme
 - Inspect **slide layouts** — both name fields, master/theme relationships, and which slides use each layout
 
 It supports atomic many-to-one color mappings and theme filtering, making it easy to rebrand presentations or fix specific hex colors across your deck.
@@ -86,6 +87,63 @@ Colors:
   accent3  (Accent 3):            #196B24
   ...
 ```
+
+### List theme fonts
+
+View the font scheme (major/heading and minor/body typefaces) for every theme in a file:
+
+```bash
+pptx-toolkit theme font list presentation.pptx
+```
+
+Filter to a specific theme:
+
+```bash
+pptx-toolkit theme font list presentation.pptx --theme theme1
+```
+
+Example output:
+
+```
+Found 2 theme(s) in presentation.pptx:
+
+━━━ theme1.xml ━━━
+Theme:        Office Theme Deck
+Font Scheme:  Office
+
+Fonts:
+  major  (headings):  Aptos Display
+  minor  (body):      Aptos
+
+━━━ theme2.xml ━━━
+Theme:        Blue II Deck
+Font Scheme:  Office
+
+Fonts:
+  major  (headings):  Aptos Display
+  minor  (body):      Aptos
+
+```
+
+### Set theme fonts
+
+Update the heading font, body font, or font scheme name in one or more themes:
+
+```bash
+# Set both fonts in all themes
+pptx-toolkit theme font set input.pptx output.pptx --major "Arial" --minor "Times New Roman"
+
+# Set only the heading font
+pptx-toolkit theme font set input.pptx output.pptx --major "Calibri"
+
+# Rename the font scheme
+pptx-toolkit theme font set input.pptx output.pptx --scheme-name "Corporate"
+
+# Target a specific theme only
+pptx-toolkit theme font set input.pptx output.pptx --major "Arial" --theme theme1
+```
+
+At least one of `--major`, `--minor`, or `--scheme-name` must be provided. Font names are passed through as-is — no validation against installed fonts.
 
 ### List slide layouts
 
@@ -376,7 +434,7 @@ Pull requests, bug reports, and feature suggestions are welcome!
 
 Areas that could use help:
 
-- Additional PowerPoint manipulation features (fonts, themes, etc.)
+- Additional PowerPoint manipulation features (per-script font overrides, theme effects, etc.)
 - Performance improvements for large presentations
 - Additional output formats (JSON, YAML for color inspection)
 
