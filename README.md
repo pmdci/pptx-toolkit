@@ -56,6 +56,51 @@ codesign -s - pptx-toolkit
 
 ## Usage
 
+### List themes
+
+View the high-level theme inventory in a PowerPoint file, including each
+theme's color scheme name, font scheme name, and which masters reference it.
+
+```bash
+pptx-toolkit theme list presentation.pptx
+```
+
+Filter to specific theme files:
+
+```bash
+pptx-toolkit theme list presentation.pptx --theme theme1,theme2
+```
+
+Example output:
+
+```text
+Found 3 theme(s) in presentation.pptx:
+
+━━━ theme1.xml ━━━
+Theme:        Simple Light
+Color Scheme: Simple Light
+Font Scheme:  Soho
+
+Bindings:
+  Slide master:   slideMaster1.xml
+
+━━━ theme2.xml ━━━
+Theme:        Default
+Color Scheme: Default
+Font Scheme:  Office
+
+Bindings:
+  Notes master:   notesMaster1.xml
+
+━━━ theme3.xml ━━━
+Theme:        Office Theme
+Color Scheme: Office
+Font Scheme:  Office
+
+Bindings:
+  Handout master: handoutMaster1.xml
+```
+
 ### List themes and colors
 
 View all themes and their color schemes in a PowerPoint file:

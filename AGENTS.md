@@ -18,7 +18,7 @@ cmd/pptx-toolkit/
 ├── colors_cmd.go       # Color command wiring (*_cmd.go convention)
 ├── layout_cmd.go       # Layout command wiring (*_cmd.go convention)
 ├── output_cmd.go       # Command-layer output helpers (*_cmd.go convention)
-├── theme_cmd.go        # Theme color command wiring (*_cmd.go convention)
+├── theme_cmd.go        # Theme command wiring (*_cmd.go convention)
 ├── theme_font_cmd.go   # Theme font command wiring (*_cmd.go convention)
 ├── font.go             # Theme font extraction and mutation logic
 ├── layout.go           # Layout domain logic and types
@@ -28,6 +28,7 @@ cmd/pptx-toolkit/
 ├── rename.go           # Color scheme rename logic
 ├── slides.go           # Slide range parsing and mapping
 ├── theme.go            # Theme extraction (reads color schemes from themes)
+├── theme_list.go       # Theme summary listing and master binding resolution
 └── *_test.go           # Unit tests alongside implementation
 
 internal/
@@ -69,6 +70,7 @@ make cross-compile      # All 6 platforms (macOS/Linux/Windows × ARM64/AMD64)
 
 Uses Cobra with nested commands:
 
+- `pptx-toolkit theme list <file.pptx> [--theme theme1]` - List themes with color scheme name, font scheme name, and master bindings
 - `pptx-toolkit theme color list <file.pptx>` - List all themes and color schemes
 - `pptx-toolkit theme color rename <new-name> <in.pptx> <out.pptx> [--theme theme1]` - Rename theme colour scheme names
 - `pptx-toolkit theme font list <file.pptx>` - List major/minor typefaces for each theme
