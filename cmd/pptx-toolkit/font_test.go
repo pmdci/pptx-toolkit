@@ -104,6 +104,39 @@ func TestSetFontScheme_SchemeName(t *testing.T) {
 	assertContains(t, output, `minorFont><a:latin typeface="Aptos" panose="02110004020202020204"/>`)
 }
 
+func TestSetFontScheme_SchemeNameEscapesAndRerename(t *testing.T) {
+	input := []byte(sampleThemeFontXML())
+	firstName := `. / \ ? : *   " ' < > &`
+	secondName := `Second & Final`
+
+	output, err := SetFontScheme(input, FontSchemeUpdate{SchemeName: firstName})
+	if err != nil {
+		t.Fatalf("SetFontScheme first pass failed: %v", err)
+	}
+
+	assertContains(t, output, `<a:fontScheme name=". / \ ? : *   &quot; &apos; &lt; &gt; &amp;">`)
+	scheme, err := parseFontSchemeXML(output, "theme1.xml")
+	if err != nil {
+		t.Fatalf("parseFontSchemeXML after first pass failed: %v", err)
+	}
+	if scheme.SchemeName != firstName {
+		t.Fatalf("first pass scheme name = %q, want %q", scheme.SchemeName, firstName)
+	}
+
+	output, err = SetFontScheme(output, FontSchemeUpdate{SchemeName: secondName})
+	if err != nil {
+		t.Fatalf("SetFontScheme second pass failed: %v", err)
+	}
+
+	scheme, err = parseFontSchemeXML(output, "theme1.xml")
+	if err != nil {
+		t.Fatalf("parseFontSchemeXML after second pass failed: %v", err)
+	}
+	if scheme.SchemeName != secondName {
+		t.Fatalf("second pass scheme name = %q, want %q", scheme.SchemeName, secondName)
+	}
+}
+
 func TestSetFontScheme_Preserves47ScriptOverrides(t *testing.T) {
 	input := []byte(sampleThemeFontXML())
 	before := bytes.Count(input, []byte(`<a:font script=`))

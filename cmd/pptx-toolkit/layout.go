@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -175,15 +174,6 @@ func parseLayoutXML(filePath string) (name, matchingName string, err error) {
 
 var (
 	matchingNameRe = regexp.MustCompile(`\s+matchingName\s*=\s*(?:"[^"]*"|'[^']*')`)
-	nameAttrRe     = regexp.MustCompile(`\s+name\s*=\s*(?:"[^"]*"|'[^']*')`)
-)
-
-var xmlAttributeEscaper = strings.NewReplacer(
-	"&", "&amp;",
-	`"`, "&quot;",
-	"'", "&apos;",
-	"<", "&lt;",
-	">", "&gt;",
 )
 
 // removeMatchingNameAttr removes the matchingName attribute from the sldLayout
@@ -250,7 +240,7 @@ func RemoveLayoutMatchingName(inputPath, outputPath string, filters LayoutFilter
 func findLayoutStartTagRange(content []byte) (int, int, error) {
 	return findStartElementRange(content, func(se xml.StartElement, _ int) bool {
 		return se.Name.Local == "sldLayout" && se.Name.Space == presentationMLNamespace
-	})
+	}, "layout XML")
 }
 
 func findLayoutCSldStartTagRange(content []byte) (int, int, error) {
@@ -261,66 +251,7 @@ func findLayoutCSldStartTagRange(content []byte) (int, int, error) {
 			return false
 		}
 		return foundLayout && depth == 1 && se.Name.Local == "cSld" && se.Name.Space == presentationMLNamespace
-	})
-}
-
-func findStartElementRange(content []byte, matcher func(xml.StartElement, int) bool) (int, int, error) {
-	d := xml.NewDecoder(bytes.NewReader(content))
-	depth := 0
-	for {
-		preOffset := int(d.InputOffset())
-		tok, err := d.Token()
-		if err == io.EOF {
-			return -1, -1, nil
-		}
-		if err != nil {
-			return 0, 0, fmt.Errorf("parsing layout XML: %w", err)
-		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			if matcher(t, depth) {
-				return preOffset, int(d.InputOffset()), nil
-			}
-			depth++
-		case xml.EndElement:
-			if depth > 0 {
-				depth--
-			}
-		}
-	}
-}
-
-func replaceByteRange(content []byte, start, end int, replacement []byte) []byte {
-	out := make([]byte, 0, len(content)-((end-start)-len(replacement)))
-	out = append(out, content[:start]...)
-	out = append(out, replacement...)
-	out = append(out, content[end:]...)
-	return out
-}
-
-func escapeXMLAttributeValue(value string) string {
-	return xmlAttributeEscaper.Replace(value)
-}
-
-func setAttrOnStartTag(startTag []byte, attrName, value string, attrRe *regexp.Regexp) []byte {
-	replacement := []byte(fmt.Sprintf(` %s="%s"`, attrName, escapeXMLAttributeValue(value)))
-	if attrRe.Match(startTag) {
-		return attrRe.ReplaceAllLiteral(startTag, replacement)
-	}
-
-	insertPos := len(startTag) - 1
-	if insertPos < 0 || startTag[insertPos] != '>' {
-		return startTag
-	}
-	if insertPos > 0 && startTag[insertPos-1] == '/' {
-		insertPos--
-	}
-
-	out := make([]byte, 0, len(startTag)+len(replacement))
-	out = append(out, startTag[:insertPos]...)
-	out = append(out, replacement...)
-	out = append(out, startTag[insertPos:]...)
-	return out
+	}, "layout XML")
 }
 
 func setLayoutProperty(content []byte, targetProperty, value string) ([]byte, error) {
@@ -371,6 +302,15 @@ func layoutPropertyValue(info *LayoutInfo, property string) string {
 // Property-to-property copies are a no-op when the source property is absent.
 // The output PPTX is always written, even when no layouts are changed.
 func SetLayoutProperty(inputPath, outputPath string, mapping *LayoutSetMapping, filters LayoutFilters) (int, error) {
+	if mapping == nil {
+		return 0, fmt.Errorf("layout set mapping cannot be nil")
+	}
+	if mapping.SourceKind == LayoutSetSourceLiteral {
+		if err := ValidateName(mapping.SourceLiteral); err != nil {
+			return 0, err
+		}
+	}
+
 	tempDir, err := os.MkdirTemp("", "pptx-toolkit-*")
 	if err != nil {
 		return 0, fmt.Errorf("failed to create temp directory: %w", err)

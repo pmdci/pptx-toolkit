@@ -189,6 +189,7 @@ pptx-toolkit theme font set input.pptx output.pptx --major "Arial" --theme theme
 ```
 
 At least one of `--major`, `--minor`, or `--scheme-name` must be provided. Font names are passed through as-is — no validation against installed fonts.
+Scheme names must be non-empty; XML-sensitive characters are preserved and written safely.
 
 ### List slide layouts
 
@@ -286,17 +287,19 @@ Supports the same `--layout-id`, `--name`, `--matching-name`, and `--theme` filt
 
 Replace color references throughout the presentation. Supports both scheme colors (e.g., `accent1`) and hex RGB values (e.g., `AABBCC`).
 
-### Rename a theme color scheme
+### Set a theme color scheme name
 
-Rename the colour scheme name stored in one or more theme definitions:
+Set the colour scheme name stored in one or more theme definitions:
 
 ```bash
 # Rename in all themes
-pptx-toolkit theme color rename "Corporate Brand" input.pptx output.pptx
+pptx-toolkit theme color set input.pptx output.pptx --scheme-name "Corporate Brand"
 
 # Rename only selected themes
-pptx-toolkit theme color rename "Corporate Brand" input.pptx output.pptx --theme theme1,theme2
+pptx-toolkit theme color set input.pptx output.pptx --scheme-name "Corporate Brand" --theme theme1,theme2
 ```
+
+Colour scheme names must be non-empty; XML-sensitive characters are preserved and written safely.
 
 ```bash
 # Scheme to scheme

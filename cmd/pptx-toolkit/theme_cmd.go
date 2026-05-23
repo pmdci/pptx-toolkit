@@ -35,30 +35,29 @@ var themeColorListCmd = &cobra.Command{
 	RunE:  runThemeColorList,
 }
 
-var themeColorRenameCmd = &cobra.Command{
-	Use:   "rename <new-name> <input.pptx> <output.pptx>",
-	Short: "Rename colour scheme(s)",
-	Long: `Rename colour scheme(s) in themes.
-
-By default, renames the colour scheme in all themes. Use --theme to target specific themes.
+var themeColorSetCmd = &cobra.Command{
+	Use:   "set <input.pptx> <output.pptx>",
+	Short: "Set theme colour scheme values",
+	Long: `Set the colour scheme name in matching themes.
 
 Examples:
   # Rename in all themes
-  pptx-toolkit theme color rename "Azure Blue" input.pptx output.pptx
+  pptx-toolkit theme color set input.pptx output.pptx --scheme-name "Azure Blue"
 
   # Rename in specific theme
-  pptx-toolkit theme color rename "Corporate Brand" input.pptx output.pptx --theme theme1
+  pptx-toolkit theme color set input.pptx output.pptx --scheme-name "Corporate Brand" --theme theme1
 
   # Rename in multiple themes
-  pptx-toolkit theme color rename "New Scheme" input.pptx output.pptx --theme theme1,theme2`,
-	Args: cobra.ExactArgs(3),
-	RunE: runThemeColorRename,
+  pptx-toolkit theme color set input.pptx output.pptx --scheme-name "New Scheme" --theme theme1,theme2`,
+	Args: cobra.ExactArgs(2),
+	RunE: runThemeColorSet,
 }
 
 var (
-	themeListFilter        []string
-	themeColorListFilter   []string
-	themeColorRenameFilter []string
+	themeListFilter      []string
+	themeColorListFilter []string
+	themeColorSetFilter  []string
+	themeColorSetName    string
 )
 
 func init() {
@@ -66,11 +65,12 @@ func init() {
 	themeCmd.AddCommand(themeColorCmd)
 	themeCmd.AddCommand(themeFontCmd)
 	themeColorCmd.AddCommand(themeColorListCmd)
-	themeColorCmd.AddCommand(themeColorRenameCmd)
+	themeColorCmd.AddCommand(themeColorSetCmd)
 
 	themeListCmd.Flags().StringSliceVar(&themeListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 	themeColorListCmd.Flags().StringSliceVar(&themeColorListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
-	themeColorRenameCmd.Flags().StringSliceVar(&themeColorRenameFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
+	themeColorSetCmd.Flags().StringVar(&themeColorSetName, "scheme-name", "", "Set the colour scheme name")
+	themeColorSetCmd.Flags().StringSliceVar(&themeColorSetFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 }
 
 func runThemeList(cmd *cobra.Command, args []string) error {
@@ -112,16 +112,17 @@ func runThemeColorList(cmd *cobra.Command, args []string) error {
 	return printThemeColorList(cmd, args[0], themeColorListFilter)
 }
 
-func runThemeColorRename(cmd *cobra.Command, args []string) error {
+func runThemeColorSet(cmd *cobra.Command, args []string) error {
+	defer resetThemeColorSetFlags(cmd)
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 
-	newName := args[0]
-	inputFile := args[1]
-	outputFile := args[2]
+	inputFile := args[0]
+	outputFile := args[1]
+	newName := themeColorSetName
 
-	if err := ValidateName(newName); err != nil {
-		cmd.PrintErrln("Error:", err)
+	if newName == "" {
+		cmd.PrintErrln("Error: --scheme-name is required")
 		return fmt.Errorf("")
 	}
 
@@ -131,11 +132,11 @@ func runThemeColorRename(cmd *cobra.Command, args []string) error {
 
 	config := ProcessingConfig{
 		NewName: newName,
-		Themes:  themeColorRenameFilter,
+		Themes:  themeColorSetFilter,
 	}
 	PrintProcessingHeader(cmd, inputFile, config)
 
-	themesRenamed, err := RenameColorScheme(inputFile, outputFile, newName, themeColorRenameFilter)
+	themesRenamed, err := SetColorSchemeName(inputFile, outputFile, newName, themeColorSetFilter)
 	if err != nil {
 		cmd.PrintErrf("\nError: %v\n", err)
 		return fmt.Errorf("")
@@ -164,6 +165,19 @@ func printBindings(cmd *cobra.Command, bindings []MasterBinding) {
 	}
 	if len(unknown) > 0 {
 		cmd.Printf("  %-15s %s\n", bindingLabel("", len(unknown)), strings.Join(unknown, ", "))
+	}
+}
+
+func resetThemeColorSetFlags(cmd *cobra.Command) {
+	themeColorSetFilter = nil
+	themeColorSetName = ""
+
+	if flag := cmd.Flags().Lookup("scheme-name"); flag != nil {
+		_ = flag.Value.Set("")
+		flag.Changed = false
+	}
+	if flag := cmd.Flags().Lookup("theme"); flag != nil {
+		flag.Changed = false
 	}
 }
 

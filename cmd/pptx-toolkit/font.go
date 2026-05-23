@@ -122,6 +122,12 @@ func ReadFontSchemes(pptxPath string, themeFilter []string) ([]*FontScheme, erro
 
 // SetFontScheme updates only the latin typeface(s) and optional font scheme name.
 func SetFontScheme(xmlContent []byte, update FontSchemeUpdate) ([]byte, error) {
+	if update.SchemeName != "" {
+		if err := ValidateName(update.SchemeName); err != nil {
+			return nil, err
+		}
+	}
+
 	scheme, err := parseFontSchemeXML(xmlContent, "")
 	if err != nil {
 		return nil, err
@@ -269,13 +275,15 @@ func replaceLatinTypeface(content []byte, role, oldTypeface, newTypeface string)
 	return spliceSubmatch(content, idx, newTypeface), nil
 }
 
+// TODO: Distinguish empty name="" from a missing name attribute if we ever need to
+// support malformed or non-PowerPoint-authored fontScheme elements.
 func replaceFontSchemeName(content []byte, oldName, newName string) ([]byte, error) {
-	re := regexp.MustCompile(`(<[^>]*fontScheme[^>]*\bname=")` + regexp.QuoteMeta(oldName) + `(")`)
+	re := regexp.MustCompile(`(<[^>]*fontScheme[^>]*\bname=")` + regexp.QuoteMeta(escapeXMLAttributeValue(oldName)) + `(")`)
 	idx := re.FindSubmatchIndex(content)
 	if idx == nil {
 		return nil, fmt.Errorf("could not locate fontScheme name attribute")
 	}
-	return spliceSubmatch(content, idx, newName), nil
+	return spliceSubmatch(content, idx, escapeXMLAttributeValue(newName)), nil
 }
 
 // spliceSubmatch replaces the content between groups 1 and 2 of a two-group

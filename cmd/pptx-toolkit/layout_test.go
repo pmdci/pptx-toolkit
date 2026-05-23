@@ -59,6 +59,16 @@ func TestParseLayoutXML(t *testing.T) {
 			wantName:         "",
 			wantMatchingName: "",
 		},
+		{
+			name: "escaped entities decode back to logical values",
+			xml: `<?xml version="1.0" encoding="UTF-8"?>
+<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+             matchingName=". / \ ? : *   &quot; &apos; &lt; &gt; &amp;">
+  <p:cSld name=". / \ ? : *   &quot; &apos; &lt; &gt; &amp;"></p:cSld>
+</p:sldLayout>`,
+			wantName:         `. / \ ? : *   " ' < > &`,
+			wantMatchingName: `. / \ ? : *   " ' < > &`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -193,6 +203,16 @@ func TestSetLayoutProperty(t *testing.T) {
 			target:      layoutPropertyMatchingName,
 			value:       `Price $100`,
 			wantContain: `matchingName="Price $100"`,
+		},
+		{
+			name: "xml-sensitive characters are escaped consistently",
+			input: `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+				`<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" preserve="1">` + "\n" +
+				`  <p:cSld name="Old"></p:cSld>` + "\n" +
+				`</p:sldLayout>`,
+			target:      layoutPropertyName,
+			value:       `. / \ ? : *   " ' < > &`,
+			wantContain: `<p:cSld name=". / \ ? : *   &quot; &apos; &lt; &gt; &amp;">`,
 		},
 	}
 
@@ -426,6 +446,50 @@ func TestSetLayoutProperty_FilteredByLayoutID(t *testing.T) {
 		if l.MatchingName != orig.MatchingName {
 			t.Fatalf("non-target layout %s changed from %q to %q", l.LayoutID, orig.MatchingName, l.MatchingName)
 		}
+	}
+}
+
+func TestSetLayoutProperty_LiteralWithXMLCharsReadsBack(t *testing.T) {
+	skipIfNoFixture(t)
+
+	value := `. / \ ? : *   " ' < > &`
+	outFile := filepath.Join(t.TempDir(), "out.pptx")
+	mapping := &LayoutSetMapping{
+		SourceKind:     LayoutSetSourceLiteral,
+		SourceLiteral:  value,
+		TargetProperty: layoutPropertyMatchingName,
+	}
+
+	count, err := SetLayoutProperty(testPPTX, outFile, mapping, LayoutFilters{LayoutID: "slideLayout12"})
+	if err != nil {
+		t.Fatalf("SetLayoutProperty failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 layout updated, got %d", count)
+	}
+
+	layouts, err := ReadLayouts(outFile, LayoutFilters{LayoutID: "slideLayout12"})
+	if err != nil {
+		t.Fatalf("ReadLayouts on output failed: %v", err)
+	}
+	if len(layouts) != 1 {
+		t.Fatalf("expected 1 layout, got %d", len(layouts))
+	}
+	if layouts[0].MatchingName != value {
+		t.Fatalf("matching-name = %q, want %q", layouts[0].MatchingName, value)
+	}
+
+	tempDir := t.TempDir()
+	if err := toolkitpptx.ExtractPPTX(outFile, tempDir); err != nil {
+		t.Fatalf("ExtractPPTX failed: %v", err)
+	}
+	layoutXML, err := os.ReadFile(filepath.Join(tempDir, "ppt", "slideLayouts", "slideLayout12.xml"))
+	if err != nil {
+		t.Fatalf("read slideLayout12.xml failed: %v", err)
+	}
+	wantEscaped := `matchingName=". / \ ? : *   &quot; &apos; &lt; &gt; &amp;"`
+	if !bytes.Contains(layoutXML, []byte(wantEscaped)) {
+		t.Fatalf("expected escaped matching-name %q, got:\n%s", wantEscaped, layoutXML)
 	}
 }
 
