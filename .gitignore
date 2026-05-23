@@ -28,9 +28,7 @@ dist/
 *.swo
 *~
 
-# Internal AI-related stuff (but keep .llm/ docs!)
-AGENTS.md
-CLAUDE.md
+# Internal AI-related stuff
 .claude/
 .claude-octopus/
 .llm/
