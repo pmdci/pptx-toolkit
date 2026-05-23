@@ -31,7 +31,9 @@ dist/
 # Internal AI-related stuff
 .claude/
 .claude-octopus/
-.llm/
+
+# Local only
+docs/private/
 
 # OS generated files
 .DS_Store
