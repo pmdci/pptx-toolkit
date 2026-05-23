@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI models when working with code in this repository.
 
 ## Project Overview
 
@@ -14,18 +14,21 @@ The codebase follows standard Go CLI patterns:
 
 ```
 cmd/pptx-toolkit/
-├── main.go           # Cobra CLI entry point and root command
-├── colors_cmd.go     # Color command wiring (*_cmd.go convention)
-├── layout_cmd.go     # Layout command wiring (*_cmd.go convention)
-├── output_cmd.go     # Command-layer output helpers (*_cmd.go convention)
-├── layout.go         # Layout domain logic and types
-├── parser.go         # Color mapping and layout set parsing
-├── processor.go      # XML scheme color replacement (regex-based)
-├── pptx.go           # Theme filtering and document processing orchestration
-├── rename.go         # Color scheme rename logic
-├── slides.go         # Slide range parsing and mapping
-├── theme.go          # Theme extraction (reads color schemes from themes)
-└── *_test.go         # Unit tests alongside implementation
+├── main.go             # Cobra CLI entry point and root command
+├── colors_cmd.go       # Color command wiring (*_cmd.go convention)
+├── layout_cmd.go       # Layout command wiring (*_cmd.go convention)
+├── output_cmd.go       # Command-layer output helpers (*_cmd.go convention)
+├── theme_cmd.go        # Theme color command wiring (*_cmd.go convention)
+├── theme_font_cmd.go   # Theme font command wiring (*_cmd.go convention)
+├── font.go             # Theme font extraction and mutation logic
+├── layout.go           # Layout domain logic and types
+├── parser.go           # Color mapping and layout set parsing
+├── processor.go        # XML scheme color replacement (regex-based)
+├── pptx.go             # Theme filtering and document processing orchestration
+├── rename.go           # Color scheme rename logic
+├── slides.go           # Slide range parsing and mapping
+├── theme.go            # Theme extraction (reads color schemes from themes)
+└── *_test.go           # Unit tests alongside implementation
 
 internal/
 └── pptx/
@@ -53,7 +56,7 @@ make clean              # Remove build artifacts
 go test ./cmd/pptx-toolkit -v -run TestName
 
 # Development iteration
-make dev ARGS="theme color list testdata/test.pptx"
+make dev ARGS="theme color list cmd/pptx-toolkit/testdata/test.pptx"
 
 # Release builds
 make build-release      # With UPX compression (if available)
@@ -69,8 +72,11 @@ Uses Cobra with nested commands:
 - `pptx-toolkit theme color list <file.pptx>` - List all themes and color schemes
 - `pptx-toolkit theme color rename <new-name> <in.pptx> <out.pptx> [--theme theme1]` - Rename theme colour scheme names
 - `pptx-toolkit theme font list <file.pptx>` - List major/minor typefaces for each theme
-- `pptx-toolkit theme font set <in.pptx> <out.pptx> --major "Arial" --minor "Times New Roman"` - Set theme fonts
-- `pptx-toolkit color swap <in.pptx> <out.pptx> "accent1:accent3" --theme theme1` - Swap colors
+- `pptx-toolkit theme font set <in.pptx> <out.pptx> --major "Arial" --minor "Times New Roman" [--scheme-name "Brand Fonts"]` - Set theme fonts and/or rename the font scheme
+- `pptx-toolkit color swap "accent1:accent3" <in.pptx> <out.pptx> [--theme theme1]` - Swap colors
+- `pptx-toolkit layout list <file.pptx> [--theme theme1]` - List slide layouts with layout, master, theme, and slide usage details
+- `pptx-toolkit layout set <source>:<target> <in.pptx> <out.pptx>` - Set layout `name` or `matching-name`
+- `pptx-toolkit layout remove matching-name <in.pptx> <out.pptx>` - Remove layout matching-name attributes
 
 **UK English alias:** `colour` works as an alias for `color` (both are valid).
 
@@ -87,7 +93,9 @@ An additional directory named `tests/` contain other tests files users for manua
 ## Release Process
 
 1. Commit changes
-2. Tag: `git tag -a v0.x.y -m "Release v0.x.y"`
+2. Tag:
+   - Major release: `git tag -a v0.x -m "v0.x"`
+   - Minor/patch release: `git tag -a v0.x.y -m "v0.x.y"`
 3. Push: `git push origin main && git push origin v0.x.y`
 4. GitHub Actions (`.github/workflows/release.yml`) triggers GoReleaser
 5. Binaries are built, compressed with UPX (where supported), and attached to GitHub release
@@ -107,8 +115,8 @@ An additional directory named `tests/` contain other tests files users for manua
 
 ### Command Wiring Convention
 
-Keep core domain logic in singular domain files (e.g. `layout.go`, `theme.go`). Put Cobra command wiring — command definitions, flag registration, `RunE` handlers — in `*_cmd.go` files (e.g. `layout_cmd.go`, `colors_cmd.go`).
+Keep core domain logic in singular domain files (e.g. `layout.go`, `theme.go`). Put Cobra command wiring — command definitions, flag registration, `RunE` handlers — in `*_cmd.go` files (e.g. `layout_cmd.go`, `colors_cmd.go`). The exception is `main.go`, which owns the root command bootstrap and process entry point.
 
-**Boundary rule:** Non-command files must not depend on Cobra types or Cobra command lifecycle assumptions. As a first-order enforcement check: non-`*_cmd.go` files must not import `github.com/spf13/cobra`. The import check is a heuristic; the deeper intent is that domain and infrastructure code must remain callable without constructing a Cobra command.
+**Boundary rule:** Domain and infrastructure files must not depend on Cobra types or Cobra command lifecycle assumptions. As a first-order enforcement check: files other than `main.go` and `*_cmd.go` must not import `github.com/spf13/cobra`. The import check is a heuristic; the deeper intent is that domain and infrastructure code must remain callable without constructing a Cobra command.
 
 **Isolation rule:** Structural refactors (file renames, reorganisation) must be in their own commits, separate from feature additions. This makes regressions attributable and keeps structural decisions safely revertable.
