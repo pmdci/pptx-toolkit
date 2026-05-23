@@ -39,6 +39,10 @@ func TestReadThemes(t *testing.T) {
 			t.Errorf("theme %d: color scheme name is empty", i)
 		}
 
+		if theme.FontSchemeName == "" {
+			t.Errorf("theme %d: font scheme name is empty", i)
+		}
+
 		// Verify colors are extracted (at least some should not be default "000000")
 		colors := []string{
 			theme.Colors.Dk1,
@@ -92,6 +96,10 @@ func TestParseThemeXML(t *testing.T) {
 			<a:hlink><a:srgbClr val="0000FF"/></a:hlink>
 			<a:folHlink><a:srgbClr val="800080"/></a:folHlink>
 		</a:clrScheme>
+		<a:fontScheme name="Test Fonts">
+			<a:majorFont><a:latin typeface="Headings"/></a:majorFont>
+			<a:minorFont><a:latin typeface="Body"/></a:minorFont>
+		</a:fontScheme>
 	</a:themeElements>
 </a:theme>`)
 
@@ -110,6 +118,10 @@ func TestParseThemeXML(t *testing.T) {
 
 	if theme.ColorSchemeName != "Test Colors" {
 		t.Errorf("expected colorSchemeName 'Test Colors', got '%s'", theme.ColorSchemeName)
+	}
+
+	if theme.FontSchemeName != "Test Fonts" {
+		t.Errorf("expected fontSchemeName 'Test Fonts', got '%s'", theme.FontSchemeName)
 	}
 
 	// Verify specific colors
@@ -152,6 +164,10 @@ func TestParseThemeXML_SystemColors(t *testing.T) {
 			<a:hlink><a:srgbClr val="0000FF"/></a:hlink>
 			<a:folHlink><a:srgbClr val="800080"/></a:folHlink>
 		</a:clrScheme>
+		<a:fontScheme name="System Fonts">
+			<a:majorFont><a:latin typeface="Headings"/></a:majorFont>
+			<a:minorFont><a:latin typeface="Body"/></a:minorFont>
+		</a:fontScheme>
 	</a:themeElements>
 </a:theme>`)
 

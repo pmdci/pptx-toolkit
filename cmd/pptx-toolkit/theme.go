@@ -32,6 +32,7 @@ type Theme struct {
 	FileName        string      `json:"fileName"`        // e.g., "theme1.xml"
 	ThemeName       string      `json:"themeName"`       // e.g., "Office Theme Deck"
 	ColorSchemeName string      `json:"colorSchemeName"` // e.g., "Office"
+	FontSchemeName  string      `json:"fontSchemeName"`  // e.g., "Office"
 	Colors          ColorScheme `json:"colors"`
 }
 
@@ -87,6 +88,11 @@ func parseThemeXML(xmlContent []byte, fileName string) (*Theme, error) {
 		colorSchemeName = "Unknown"
 	}
 
+	fontSchemeName := ""
+	if fontScheme := xmlquery.FindOne(doc, "//*[local-name()='fontScheme']"); fontScheme != nil {
+		fontSchemeName = fontScheme.SelectAttr("name")
+	}
+
 	// Extract all scheme colors
 	getColor := func(name string) string {
 		xpath := fmt.Sprintf("//*[local-name()='clrScheme']/*[local-name()='%s']", name)
@@ -113,6 +119,7 @@ func parseThemeXML(xmlContent []byte, fileName string) (*Theme, error) {
 		FileName:        fileName,
 		ThemeName:       themeName,
 		ColorSchemeName: colorSchemeName,
+		FontSchemeName:  fontSchemeName,
 		Colors:          colors,
 	}, nil
 }

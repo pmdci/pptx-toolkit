@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -11,6 +12,13 @@ var themeCmd = &cobra.Command{
 	Use:   "theme",
 	Short: "Theme-related operations",
 	Long:  "Inspect and modify PowerPoint theme definitions.",
+}
+
+var themeListCmd = &cobra.Command{
+	Use:   "list <input.pptx>",
+	Short: "List themes in a PowerPoint file",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runThemeList,
 }
 
 var themeColorCmd = &cobra.Command{
@@ -48,18 +56,56 @@ Examples:
 }
 
 var (
+	themeListFilter        []string
 	themeColorListFilter   []string
 	themeColorRenameFilter []string
 )
 
 func init() {
+	themeCmd.AddCommand(themeListCmd)
 	themeCmd.AddCommand(themeColorCmd)
 	themeCmd.AddCommand(themeFontCmd)
 	themeColorCmd.AddCommand(themeColorListCmd)
 	themeColorCmd.AddCommand(themeColorRenameCmd)
 
+	themeListCmd.Flags().StringSliceVar(&themeListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 	themeColorListCmd.Flags().StringSliceVar(&themeColorListFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
 	themeColorRenameCmd.Flags().StringSliceVar(&themeColorRenameFilter, "theme", nil, "Comma-separated list of themes to target (e.g., theme1,theme2)")
+}
+
+func runThemeList(cmd *cobra.Command, args []string) error {
+	defer resetThemeListFlags(cmd)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	if err := ValidateInputFile(args[0]); err != nil {
+		cmd.PrintErrln("Error:", err)
+		return fmt.Errorf("")
+	}
+
+	summaries, err := ReadThemeSummaries(args[0], themeListFilter)
+	if err != nil {
+		cmd.PrintErrf("Error: %v\n", err)
+		return fmt.Errorf("")
+	}
+
+	cmd.Printf("\nFound %d theme(s) in %s:\n\n", len(summaries), args[0])
+	for _, summary := range summaries {
+		cmd.Printf("━━━ %s ━━━\n", summary.Theme.FileName)
+		cmd.Printf("Theme:        %s\n", summary.Theme.ThemeName)
+		cmd.Printf("Color Scheme: %s\n", summary.Theme.ColorSchemeName)
+		cmd.Printf("Font Scheme:  %s\n", summary.Theme.FontSchemeName)
+		cmd.Println()
+		cmd.Println("Bindings:")
+		printBindings(cmd, summary.Bindings)
+		cmd.Println()
+	}
+
+	return nil
+}
+
+func resetThemeListFlags(_ *cobra.Command) {
+	themeListFilter = nil
 }
 
 func runThemeColorList(cmd *cobra.Command, args []string) error {
@@ -98,4 +144,50 @@ func runThemeColorRename(cmd *cobra.Command, args []string) error {
 	PrintSuccess(cmd, themesRenamed, "theme(s)", outputFile)
 
 	return nil
+}
+
+func printBindings(cmd *cobra.Command, bindings []MasterBinding) {
+	if len(bindings) == 0 {
+		cmd.Println("  Unbound")
+		return
+	}
+
+	slides, notes, handouts, unknown := groupedBindings(bindings)
+	if len(slides) > 0 {
+		cmd.Printf("  %-15s %s\n", bindingLabel(masterTypeSlide, len(slides)), strings.Join(slides, ", "))
+	}
+	if len(notes) > 0 {
+		cmd.Printf("  %-15s %s\n", bindingLabel(masterTypeNotes, len(notes)), strings.Join(notes, ", "))
+	}
+	if len(handouts) > 0 {
+		cmd.Printf("  %-15s %s\n", bindingLabel(masterTypeHandout, len(handouts)), strings.Join(handouts, ", "))
+	}
+	if len(unknown) > 0 {
+		cmd.Printf("  %-15s %s\n", bindingLabel("", len(unknown)), strings.Join(unknown, ", "))
+	}
+}
+
+func bindingLabel(masterType string, count int) string {
+	switch masterType {
+	case masterTypeSlide:
+		if count == 1 {
+			return "Slide master:"
+		}
+		return "Slide masters:"
+	case masterTypeNotes:
+		if count == 1 {
+			return "Notes master:"
+		}
+		return "Notes masters:"
+	case masterTypeHandout:
+		if count == 1 {
+			return "Handout master:"
+		}
+		return "Handout masters:"
+	default:
+		if count == 1 {
+			return "Binding:"
+		}
+		return "Bindings:"
+	}
 }
